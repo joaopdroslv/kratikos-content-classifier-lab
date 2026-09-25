@@ -1,0 +1,45 @@
+[project]
+name = "kratikos-content-classifier-lab"
+version = "0.1.0"
+description = "Experiments for classifying Kratikos news articles and posts into categories and subcategories"
+readme = "README.md"
+authors = [
+    { name = "JOÃO PEDRO", email = "pdrojoao.slv@gmail.com" }
+]
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "numpy>=2.3",
+    "pandas>=2.3",
+    "pyarrow>=21.0",
+    "scikit-learn>=1.7",
+    # Same client version as kratikos-ai-backend, so the vectors are read exactly as it writes them.
+    "qdrant-client==1.17.1",
+    "SQLAlchemy>=2.0.48",
+    "psycopg[binary]>=3.2",
+    "openai>=2.30.0",
+    "python-dotenv>=1.1",
+    "tqdm>=4.67",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.1",
+    "isort>=6.0",
+    "ipykernel>=6.30",
+]
+# Not installed by default: torch + a ~2 GB checkpoint, needed only to benchmark the off-the-shelf
+# IPTC classifier. Opt in with `uv sync --group iptc`.
+iptc = [
+    "transformers>=4.56",
+    "torch>=2.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lab"]
+
+[tool.isort]
+profile = "black"

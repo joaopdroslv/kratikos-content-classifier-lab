@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets — only the template is versioned
+.env
+.env.*
+!.env.example
+
+# Pulled data, labels and trained artifacts stay local (they carry production content)
+data/*
+!data/.gitkeep
+models/*
+!models/.gitkeep
+
+# Notebooks
+.ipynb_checkpoints/
