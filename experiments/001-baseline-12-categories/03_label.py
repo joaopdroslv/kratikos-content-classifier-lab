@@ -24,7 +24,7 @@ from tqdm.asyncio import tqdm
 
 from lab import metadata
 from lab.config import DATA_DIR
-from lab.taxonomy import CATEGORIES, SLUGS
+from lab.taxonomy import CATEGORIES, SLUGS, TAXONOMY_VERSION
 
 SAMPLE = DATA_DIR / "001" / "sample.parquet"
 OUT = DATA_DIR / "001" / "labels.jsonl"
@@ -110,6 +110,7 @@ async def _label_one(
                     **_normalise(labeling),
                     "model": MODEL,
                     "prompt_version": PROMPT_VERSION,
+                    "taxonomy_version": TAXONOMY_VERSION,
                     "created_at": metadata.now(),
                 }
                 break

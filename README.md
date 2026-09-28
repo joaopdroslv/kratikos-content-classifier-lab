@@ -76,16 +76,18 @@ deliberately small: these are experiments, not a pipeline.
 | Row kind | Fields | Written by |
 |---|---|---|
 | LLM answer (labels, tags, assignments, validation…) | `model`, `prompt_version`, `created_at` | `lab.llm.run` writes `model` and `created_at`; the script passes `prompt_version` in `extra` |
-| LLM answer whose prompt embeds a taxonomy | + `taxonomy_version` | the script, from `lab.taxonomy_v2.TAXONOMY_VERSION` |
+| LLM answer whose prompt embeds a taxonomy | + `taxonomy_version` | the script, from the taxonomy module's `TAXONOMY_VERSION` (`lab.taxonomy`: `1.0`, frozen; `lab.taxonomy_v2`) |
 | Row read from the live database or Qdrant (samples, topics) | `sampled_at` | the script, when it reads |
 
 - **Timestamps** are UTC, ISO 8601, to the second (`lab.metadata.now()`).
 - **`prompt_version`** is `NNN-<purpose>-vK` (e.g. `002-tag-v5`). Bump K on ANY change to the
   prompt text or to the output schema, and start a fresh output file (or delete the old one): the
   LLM steps are resumable by `id`, so answers under the old prompt would otherwise be kept.
-- **`TAXONOMY_VERSION`** is bumped on any change to a master or subcategory.
+- **`TAXONOMY_VERSION`** is bumped on any change to a master or subcategory of `taxonomy_v2`.
+  `taxonomy.py` (v1, 001's labels) is frozen at `1.0`: a new taxonomy is a new module.
 - Deterministic steps (clusters, predictions, metrics) add nothing: the code and their inputs
   already say where they came from.
 - Outputs produced before this standard (2026-09-28) were back-filled with what is true only:
   `sampled_at` from the file's modification time (each sample is written once), known
-  `prompt_version`s, and `created_at: null` on earlier LLM answers.
+  `prompt_version`s, `taxonomy_version: 1.0` on the 001 labels (`taxonomy.py` is unchanged since
+  the 001 run, commit `f79b9ef`), and `created_at: null` on earlier LLM answers.

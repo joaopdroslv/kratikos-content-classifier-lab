@@ -9,6 +9,10 @@ technology) are written out here.
 
 from dataclasses import dataclass
 
+# Frozen: these are 001's labels, and 001 must stay reproducible. A new taxonomy goes in a new
+# module (see taxonomy_v2.py), never here, so this version never moves.
+TAXONOMY_VERSION = "1.0"
+
 
 @dataclass(frozen=True)
 class Category:
