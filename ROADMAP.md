@@ -62,6 +62,35 @@ subcategory of an existing one is the same question.
 
 ### 2. Labelling and student on the new taxonomy
 
+A **new experiment** that re-runs the 001 pipeline on the chosen taxonomy. 001 itself stays as it
+is: it answered its own question (can a student on our vectors track the teacher, and how bad is
+the source's category), and that answer does not depend on the taxonomy. The 12 categories were a
+deliberate choice so that 001 would not wait on a taxonomy decision, not an oversight to correct.
+Editing 001 would erase the record of what was measured.
+
+What carries over from 001:
+
+| From 001 | Reused? |
+|---|---|
+| Sample (`sample.parquet`) and vectors (`vectors.npz`) | **Yes.** Same articles, no Qdrant cost, and a fair 12-vs-new comparison |
+| Pipeline (sample → vectors → label → evaluate → review) | **Yes.** Same method |
+| Teacher labels | **No.** Re-label on the new taxonomy (~3k `gpt-4.1-mini` calls) |
+| Human review | **Partly.** Valid where a category did not change; anything on a new boundary (e.g. `Política` vs `Geopolítica`) is reviewed again |
+| Per-category numbers and learning curve | **No.** Specific to the 12 |
+
+The question this experiment answers: **with more categories and finer boundaries, does the
+student still track the teacher?** `Política` vs `Geopolítica` is a harder boundary than
+`Política` vs `Esportes`, and accuracy may drop.
+
+Two practical changes when building it:
+
+- **Do not overwrite `src/lab/taxonomy.py`**, which defines 001's labels; the new taxonomy is added
+  next to it, versioned, so 001 stays reproducible.
+- **Move the shared logic out of `04_evaluate.py`** (metrics, student training, topic-grouped
+  split) into `src/lab/`, so later experiments import it instead of copying it.
+
+On top of the 001 method:
+
 - Teacher prompt v2: stricter secondaries (the 001 review's main finding).
 - Hierarchical labels: category + subcategory; decide whether the student is one flat head or one
   head per level.
