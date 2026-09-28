@@ -20,8 +20,8 @@ the plan that ties them together: update it when an item closes or a decision is
 |---|---|---|
 | 001 | Baseline on the 12 current categories (teacher–student on the Qdrant vectors) | **done** |
 | 001 | Human review of the teacher (150 articles) | **done** |
-| — | Taxonomy proposal: master categories + subcategories | next |
-| — | Team decision on the taxonomy | blocked on the proposal |
+| 002 | Taxonomy proposal: master categories + subcategories | **done** |
+| — | Team decision on the taxonomy | **next** (input: [002 proposal](experiments/002-taxonomy-proposal/proposal.pt-BR.md)) |
 | — | Labelling and student on the new taxonomy | blocked on the decision |
 | — | Port to `kratikos-ai-backend` | later |
 | — | Posts | on hold, see [Out of scope](#out-of-scope-for-now) |
@@ -36,9 +36,17 @@ the plan that ties them together: update it when an item closes or a decision is
 - Secondaries are noisier than primaries: the teacher adds spurious ones (mostly public_safety,
   environment).
 
+**002 — taxonomy proposal** ([README](experiments/002-taxonomy-proposal/README.md),
+[proposal](experiments/002-taxonomy-proposal/proposal.pt-BR.md))
+
+- Clustered all 85.6k dev articles (via their 46k topics) inside each category.
+- Geopolitics is ~10% of all articles (39% of today's politics); entertainment ~4%; lotteries
+  1.3%. Proposed: `Geopolítica` and `Entretenimento` as new masters, geography as a separate
+  filter, and a subcategory draft per master.
+
 ## Next
 
-### 1. Taxonomy proposal (data for the team)
+### 1. Taxonomy proposal (data for the team) — done in 002, kept for the record
 
 The 12 categories were used as-is in 001 on purpose, so 001 says little about what is missing: the
 definitions in `src/lab/taxonomy.py` are broad enough to absorb almost everything (1.2% "no
