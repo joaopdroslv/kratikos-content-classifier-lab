@@ -32,14 +32,23 @@ CONTENT_CHARS = 1_500
 SEED = 0.42  # setseed() takes a value in [-1, 1]
 
 _SELECT = f"""
-    SELECT n.id::text AS id, n.title, n.description,
-           left(n.content, {CONTENT_CHARS}) AS content,
-           n.category AS source_category, n.source_name, n.language, n.published_at,
-           m.topic_id::text AS topic_id
-    FROM public.news_articles n
-    JOIN ai.ingested_news_articles i ON i.content_id = n.id AND i.successful IS TRUE
-    LEFT JOIN ai.topic_members m
-           ON m.content_id = n.id AND m.content_type = 'news_article'
+    SELECT
+        na.id::text AS id,
+        na.title,
+        na.description,
+        LEFT(na.content, {CONTENT_CHARS}) AS content,
+        na.category AS source_category,
+        na.source_name,
+        na.language,
+        na.published_at,
+        tm.topic_id::text AS topic_id
+    FROM public.news_articles AS na
+    JOIN ai.ingested_news_articles AS ina ON TRUE
+        AND ina.content_id = na.id
+        AND ina.successful IS TRUE
+    LEFT JOIN ai.topic_members AS tm ON TRUE
+        AND tm.content_id = na.id
+        AND tm.content_type = 'news_article'
 """
 
 
@@ -57,14 +66,17 @@ def main() -> None:
 
         rare = pd.read_sql(
             text(f"""
-                SELECT * FROM (
-                    SELECT s.*, row_number() OVER (
-                        PARTITION BY s.source_category ORDER BY random()
-                    ) AS rn
+                SELECT *
+                FROM (
+                    SELECT
+                        s.*,
+                        row_number() OVER (PARTITION BY s.source_category ORDER BY random()) AS rn
                     FROM ({_SELECT}) s
-                    WHERE s.source_category = ANY(:names)
-                      AND NOT (s.id = ANY(:taken))
-                ) r WHERE r.rn <= :per
+                    WHERE TRUE
+                        AND s.source_category = ANY(:names)
+                        AND NOT (s.id = ANY(:taken))
+                ) r
+                WHERE r.rn <= :per
                 """),
             conn,
             params={
