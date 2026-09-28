@@ -18,6 +18,7 @@ Posts, subcategories and the off-the-shelf IPTC model are out of scope here — 
 | 3 | `03_label.py` | `labels.jsonl`: teacher `primary` + up to 2 `secondary` + `missing_category` |
 | 4 | `04_evaluate.py` | `results.json`, `test_predictions.parquet` |
 | 5 | `05_review_sheet.py` | `review.csv`: 150 uniform test articles for a human to judge the teacher |
+| 6 | `06_score_review.py` | teacher, student and legacy primary accuracy against the filled `review.csv` |
 
 - **Teacher:** `gpt-4.1-mini`, temperature 0, structured output over the 12 slugs, with the
   definitions in `src/lab/taxonomy.py` (prompt `001-v1`). Input: title + description + the first
@@ -38,6 +39,8 @@ uv run python experiments/001-baseline-12-categories/02_vectors.py
 uv run python experiments/001-baseline-12-categories/03_label.py
 uv run python experiments/001-baseline-12-categories/04_evaluate.py
 uv run python experiments/001-baseline-12-categories/05_review_sheet.py
+# fill review.csv, then
+uv run python experiments/001-baseline-12-categories/06_score_review.py
 ```
 
 ## Result (2026-09-25, dev)
@@ -69,11 +72,25 @@ uv run python experiments/001-baseline-12-categories/05_review_sheet.py
   for only 1.2%. The recurring gap was lotteries. The definitions are broad enough to absorb
   celebrity news into culture, so this is a weak taxonomy signal by construction.
 
-**Caveat:** everything above measures agreement **with the teacher**, not correctness.
-`review.csv` (150 uniform test articles) is where a person judges the teacher itself; until it is
-filled in, the teacher's own error rate is unknown. A 30-article spot check read as correct, with a
-few debatable primaries (e.g. a campaign promise to build a hospital labelled health rather than
-politics).
+**Human review (2026-09-28).** The 150 uniform test articles in `review.csv` were judged by a
+person. Primary accuracy against that judgement (95% Wilson interval):
+
+| Candidate | primary_acc | 95% CI |
+|---|---|---|
+| **teacher** | **0.960** (144/150) | 0.915 – 0.982 |
+| student | 0.833 (125/150) | 0.766 – 0.884 |
+| legacy | 0.280 (42/150) | 0.214 – 0.357 |
+
+- **The teacher is a sound ceiling.** Its 6 misses are boundary cases: a lottery result (no
+  category fits), celebrity/TV-network quarrels labelled politics instead of culture, a student
+  protest movement labelled public_safety instead of politics.
+- **Student vs human (0.83) ≈ student vs teacher (0.84)**, so agreement with the teacher is a fair
+  proxy for correctness at this teacher quality.
+- **Secondaries are noisier than primaries:** 14 of the 150 notes flag a wrong or forced secondary
+  (mostly a spurious public_safety or environment). Worth a prompt tweak before labelling more.
+- 14 rows came back from the spreadsheet with the teacher's columns blank and were judged blind
+  (teacher 12/14 on those). `06_score_review.py` joins by id and reads only the reviewer's
+  columns, so the export loss does not affect the numbers.
 
 **Conclusion:** the teacher–student approach on existing vectors works for the 12 categories.
 The student classifies with no per-item API cost, and with about 3× the legacy agreement.

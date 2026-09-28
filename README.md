@@ -4,6 +4,8 @@ Experiments for classifying Kratikos **news articles and posts** into **categori
 subcategories** (multi-label). The winning approach is later ported into `kratikos-ai-backend` as an
 ingestion phase; this repository is where it is chosen and measured.
 
+What is done and what comes next: [ROADMAP.md](ROADMAP.md).
+
 ## Why this exists
 
 A dev-database audit (2026-09-25) showed the current categorization is not usable for
