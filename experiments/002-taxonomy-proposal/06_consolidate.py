@@ -36,7 +36,7 @@ from typing import Literal
 from openai import OpenAI
 from pydantic import BaseModel, create_model
 
-from lab import llm
+from lab import llm, metadata
 from lab.config import DATA_DIR
 from lab.taxonomy_v2 import BY_SLUG, CATEGORIES, SLUGS
 
@@ -52,6 +52,9 @@ REVISIONS = 2
 NO_SPLIT = {"lotteries"}
 UNASSIGNED = "unassigned"
 CATCH_ALL = ("outros", "outras", "geral", "gerais", "diversos", "other", "misc")
+# v1 was the flat, single-list consolidation of the first run (data/002/run1/)
+PROPOSE_PROMPT_VERSION = "002-consolidate-v2"
+ASSIGN_PROMPT_VERSION = "002-assign-v1"
 
 
 class Subcategory(BaseModel):
@@ -168,6 +171,7 @@ def assign(slug: str, proposal: Proposal, tags: list[str]) -> dict[str, str]:
             system=system,
             schema=schema,
             model=ASSIGN_MODEL,
+            extra={"prompt_version": ASSIGN_PROMPT_VERSION},
             desc=f"assign {slug}",
         )
     )
@@ -260,6 +264,9 @@ def consolidate(
                     "stats": stats,
                     "problems": problems,
                     "warnings": warnings,
+                    "model": PROPOSE_MODEL,
+                    "prompt_version": PROPOSE_PROMPT_VERSION,
+                    "created_at": metadata.now(),
                 },
                 ensure_ascii=False,
             )

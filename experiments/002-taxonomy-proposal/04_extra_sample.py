@@ -15,6 +15,7 @@ Output: `data/002/extra_sample.parquet`, same columns as the 001 sample, `stratu
 import pandas as pd
 from sqlalchemy import text
 
+from lab import metadata
 from lab.config import DATA_DIR, get_engine
 
 DIR = DATA_DIR / "002"
@@ -70,6 +71,7 @@ def main() -> None:
 
     sample = pd.concat(parts, ignore_index=True)
     sample["split_group"] = sample["topic_id"].fillna("article:" + sample["id"])
+    sample["sampled_at"] = metadata.now()
     sample.to_parquet(DIR / "extra_sample.parquet", index=False)
     print(f"wrote {len(sample)} extra articles")
     print(sample["stratum"].value_counts().to_string())

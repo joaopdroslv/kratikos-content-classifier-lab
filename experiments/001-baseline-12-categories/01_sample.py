@@ -19,6 +19,7 @@ near-duplicates, and letting them straddle train/test would inflate every score.
 import pandas as pd
 from sqlalchemy import text
 
+from lab import metadata
 from lab.config import DATA_DIR, get_engine
 from lab.taxonomy import CATEGORIES
 
@@ -90,6 +91,7 @@ def main() -> None:
     sample = pd.concat([uniform, rare], ignore_index=True)
     # An article with no topic row gets a group of its own for the split.
     sample["split_group"] = sample["topic_id"].fillna("article:" + sample["id"])
+    sample["sampled_at"] = metadata.now()
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     sample.to_parquet(OUT, index=False)

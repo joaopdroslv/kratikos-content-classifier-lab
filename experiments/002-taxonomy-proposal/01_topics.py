@@ -13,6 +13,7 @@ import pandas as pd
 from sqlalchemy import text
 from tqdm import tqdm
 
+from lab import metadata
 from lab.config import DATA_DIR, get_engine, get_qdrant
 
 OUT_DIR = DATA_DIR / "002"
@@ -62,6 +63,7 @@ def main() -> None:
     topics = topics[topics["id"].isin(found)].reset_index(drop=True)
     X = np.array([found[id] for id in topics["id"]], dtype=np.float32)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    topics["sampled_at"] = metadata.now()
     topics.to_parquet(OUT_DIR / "topics.parquet", index=False)
     np.save(OUT_DIR / "centroids.npy", X)
     print(

@@ -3,41 +3,102 @@
 ## Question
 
 Where are the 12 current categories too coarse? Which **new master categories** does the corpus
-support (e.g. `Geopolítica` out of `Política`), and which **subcategories** carry real volume under
-each master?
+support, and which **subcategories** should each master have?
 
-This experiment trains nothing and labels nothing. It produces evidence for a team decision; the
-proposal for the team is [proposal.pt-BR.md](proposal.pt-BR.md).
+This experiment trains no model. It produces a taxonomy for a team decision, curated in
+[`src/lab/taxonomy_v2.py`](../../src/lab/taxonomy_v2.py); the proposal for the team is
+[proposal.pt-BR.md](proposal.pt-BR.md).
 
 ## Method
+
+Two parts: steps 1–3 find the master categories from vectors; steps 4–7 induce the
+subcategories from text, then validate the curated result.
 
 | Step | Script | Output (`data/002/`) |
 |---|---|---|
 | 1 | `01_topics.py` | `topics.parquet`, `centroids.npy`: every topic (45,970, covering all 85,586 ingested articles) with subject, scope, member count and `centroid` vector from Qdrant `topics` |
-| 2 | `02_categorise.py` | `topics_categorised.parquet`: each topic under one of the 12 categories by the 001 student, refit on all 3,075 labelled 001 articles |
-| 3 | `03_clusters.py` | `topics_clustered.parquet`, `clusters.md`: k-means inside each category (PCA 256, weighted by member count, k = topics/400 clipped to 3–30), 115 clusters with share, scope mix and the subjects nearest each centre |
-
-- The topic `centroid` is the mean of its members' article vectors, the same space 001 trained on;
-  most topics have one member, so topics stand in for the whole corpus with a readable subject.
-- Shares are shares of **articles** (topics weighted by member count).
-- Candidate groupings were read from `clusters.md` and summed by cluster id; the sums are
-  estimates (the student is 83% accurate vs a human, and k-means clusters are not pure).
+| 2 | `02_categorise.py` | `topics_categorised.parquet`: each topic under one of the 12 v1 categories by the 001 student, refit on all 3,075 labelled 001 articles |
+| 3 | `03_clusters.py` | `clusters.md`: k-means inside each category, 115 clusters with share, scope mix and nearest subjects |
+| 4 | `04_extra_sample.py` | `extra_sample.parquet`: 750 more articles for the small masters, picked by the student |
+| 5 | `05_tag.py` | `tags.jsonl`: per article, a v2 master, a `main_tag` and an optional `aspect_tag`, both generic (no place, person, club, event) |
+| 6 | `06_consolidate.py` | `subcategories.json`: per master, faceted subcategories proposed by an LLM from the tags, checked against rules, revised up to twice |
+| 7 | `07_validate.py` | `validation.md`: the curated taxonomy applied to 1,400 unseen articles |
 
 ```bash
-uv run python experiments/002-taxonomy-proposal/01_topics.py
-uv run python experiments/002-taxonomy-proposal/02_categorise.py
-uv run python experiments/002-taxonomy-proposal/03_clusters.py
+uv run python experiments/002-taxonomy-proposal/01_topics.py        # ... through 07_validate.py
 ```
+
+### Part 1 — master categories (steps 1–3)
+
+- The topic `centroid` is the mean of its members' article vectors, the same space 001 trained
+  on. Most topics have one member, so topics stand in for the whole corpus.
+- Shares are shares of **articles** (topics weighted by member count), summed over the clusters
+  read as one candidate; they are estimates (student 83% accurate vs a human, clusters not pure).
+
+### Part 2 — subcategories (steps 4–7)
+
+The step-3 clusters could not give subcategories: the vectors split by **geography** (the Premier
+League and the Brasileirão share no names) and by **single stories** (one soap opera, one
+concert). So the subcategories are induced from text, in the TnT-LLM way (Wan et al., 2024): an
+LLM writes generic tags per article, another consolidates them per master, and the result is
+reviewed by hand.
+
+Design decisions, each taken with the product owner during the experiment:
+
+- **Multi-label subcategories, organised in facets.** A master has a **primary** facet split
+  along one axis, and may have a **cross-cutting** facet of aspects that recur across it. An
+  article can take several subcategories from either facet: "futebol" + "transferências". The
+  first consolidation (one flat list per master) mixed axes, "futebol" next to "transferências",
+  and its boundaries overlapped.
+- **No geography and no named entities** in any subcategory. The reader's location is a separate
+  filter (topics already carry a `scope`).
+- **Sports by modality; politics by subject**, like every other master (the institution axis was
+  considered and rejected).
+- **`Loterias` and `Estilo de Vida` are masters**; lotteries have no subcategories.
+
+Lessons from the runs, kept for the next taxonomy work:
+
+- A free "1 to 3 tags" list came back with 3 almost every time; a required `main_tag` plus a
+  nullable `aspect_tag` works, but only with `gpt-4.1` (`gpt-4.1-mini` filled the aspect on 39 of
+  40 trial articles, with details such as "gols" or "superação").
+- Asking one call to propose subcategories AND map hundreds of tag numbers made `gpt-4.1` loop
+  until the output limit. Step 6 proposes in one call and assigns each tag in its own call,
+  through an enum of the proposed slugs.
+- A minimum share per subcategory stops story-sized fragments, but on an enumerable axis it
+  backfires: every sport but football is under 4% of sports, so the rule merged them into
+  "individual sports". Size is a hard rule only at the bottom and never for modalities.
+- Automated revisions got the taxonomy most of the way; the rest were editorial decisions
+  (which side of a boundary a subject falls on) that no revision round settles.
+
+## Re-running
+
+```
+01 ─► 02 ─► 03                                   (read by a person → Result below)
+       └─► 04 ─► 05 ─► 06 ─► [hand curation] ─► src/lab/taxonomy_v2.py ─► 07
+```
+
+| Step | Behaviour |
+|---|---|
+| `01_topics` | **Reads the live database and Qdrant.** Re-run later, it sees a different corpus; `sampled_at` records when |
+| `02_categorise`, `03_clusters` | Deterministic (seeded). Changing a parameter of 03 renumbers the clusters, and the cluster ids quoted under Result go stale |
+| `04_extra_sample` | **Reads the live database**; seeded, same draw only while the database is unchanged. Depends on 02 |
+| `05_tag` | **Resumable, costs API.** Skips ids already in `tags.jsonl`; a new prompt needs a new `PROMPT_VERSION` and a fresh file |
+| `06_consolidate` | **Costs API, not deterministic**: `gpt-4.1` may propose slightly different subcategories. Tag assignments are resumable per proposal. Overwrites `subcategories.json` and `consolidation_log.jsonl` |
+| `07_validate` | Draws its sample once (`validation_sample.parquet`; delete it to redraw). **Resumable, costs API**; answers go to a file named by the prompt's hash, so a changed taxonomy starts a new file |
+
+Re-running 06 does **not** change 07: 07 reads the curated `taxonomy_v2.py`, which only a person
+edits.
 
 ## Result (2026-09-28, dev)
 
-**Category shares** (student, all articles) match the 001 teacher's uniform sample: sports 27.1%,
-politics 22.5%, economy 13.9%, public_safety 10.3%, culture 6.7%, technology 6.5%, health 5.1%,
-environment 3.9%, human_rights 2.0%, transport 1.1%, education 0.7%, housing 0.2%.
+### Master categories (steps 1–3)
 
-**A missing master does not show up as low confidence** (only 1.4% of articles score < 0.5): the
-student always files an item somewhere. It shows up as a large, coherent cluster that does not
-belong under its parent.
+**v1 category shares** (student, all articles): sports 27.1%, politics 22.5%, economy 13.9%,
+public_safety 10.3%, culture 6.7%, technology 6.5%, health 5.1%, environment 3.9%, human_rights
+2.0%, transport 1.1%, education 0.7%, housing 0.2%.
+
+**A missing master shows up as a large, coherent cluster under the wrong parent**, not as low
+confidence (only 1.4% of articles score < 0.5).
 
 | Candidate | Clusters | Share of all articles |
 |---|---|---|
@@ -45,22 +106,50 @@ belong under its parent.
 | + the same wars filed elsewhere | public_safety:9, human_rights:2 | +1.2% |
 | Foreign domestic politics (US, UK, Germany, Portugal/EU, Africa) | politics:4,6,13,15,18,19 | 5.7% (25% of politics) |
 | Brazilian politics | politics:0,5,7,10,12,16,20 | 8.1% (36% of politics) |
-| **Entertainment / celebrities** (famosos, novelas, streaming, athletes' love lives) | culture:3,4,5,9, sports:13 | **4.0%** |
+| **Entertainment / celebrities** | culture:3,4,5,9, sports:13 | **4.0%** |
 | **Lotteries** | economy:8 | **1.3%** (more than education + housing) |
 | Accidents and disasters | public_safety:2,4,8 | 1.9% |
 | Weather | environment:1,2 | 1.3% |
 | Automotive (split between economy and transport) | economy:2, transport:2 | 1.2% |
 | Lifestyle (recipes, horoscope, tourism) | culture:0 | 1.1% |
-| Games | technology:5 | 0.6% |
 
-- **Geopolitics is real and large**: at ~10% it would be the 4th-largest master, ahead of culture.
-  Today the same wars are scattered across politics, public_safety and human_rights.
-- **Geography is a separate axis.** Much of what looks like a split (foreign vs Brazilian politics,
-  European vs Brazilian football) is geography, not subject. Topics already carry a `scope`; the
-  proposal keeps geography out of the taxonomy.
-- **Housing (0.2%) and education (0.7%) are tiny**, and part of transport is urban works.
-- **Caveat:** dev's sources lean on UK/Portuguese feeds (cricket, Welsh rugby, Labour leadership).
-  Production may weigh subcategories differently; masters are less sensitive to that.
+Adopted: `Geopolítica`, `Entretenimento`, `Loterias`, and later `Estilo de Vida` (step 5 also
+returned travel and tourism as the most frequent missing master). Weather, accidents and
+automotive became subcategories.
 
-**Conclusion:** the corpus supports at least two new masters (`Geopolítica`, `Entretenimento`) and a
-decision on lotteries; subcategory candidates per master are in the proposal.
+### Subcategories (steps 4–6)
+
+3,825 articles tagged (3,075 from 001 + 750 extra), every master above 100 articles but
+lotteries. The v2 master mix of the tagged sample confirms part 1: geopolitics (357) is larger
+than politics (319).
+
+The faceted consolidation (`subcategories.json`) covered 89–100% of each master's articles with
+a primary subcategory, at 1.2–1.5 subcategories per article. Health, transport, human rights,
+technology and housing came out close to final. It failed where an editorial call was needed:
+
+| Master | Consolidation output | Curated (`taxonomy_v2.py`) | Why |
+|---|---|---|---|
+| Sports | Futebol 75%, "esportes individuais", "coletivos", "multiesportivos e temas gerais" | 13 modalities + cross-cutting transfers, management, **women's sport** | The share rule merged every sport but football; readers follow a modality |
+| Politics | 7 subcategories on a "process or institution" axis, incl. "sistema político e direitos cívicos" | 7 subjects: elections, corruption, democracy and institutions, government, bills and reforms, parties, polarisation | Institution axis rejected; vague umbrellas cut |
+| Geopolitics | Diplomacy 48%, armed conflicts 47% | Wars; peace talks; diplomacy; defence and weapons; sanctions; international bodies; migration | Two giants split along the same axis |
+| Culture | Incl. "agenda e estilo cultural" (recipes, horoscope, tourism) and cinema | 5 disciplines + cultural policy | Lifestyle became a master; film goes to entertainment |
+| Entertainment | Incl. "música e shows" | Celebrities; TV, soaps and reality; film and series | Music belongs to culture |
+| Education | "Política, gestão e temas transversais" 41% as a stage | 4 stages + cross-cutting exams, teachers, policy | Policy is an aspect, not a stage |
+| Transport | Cross-cutting "segurança e acidentes" | Accidents removed | Accidents belong to public_safety |
+| Environment | Climate change, weather and natural disasters overlapping | Boundaries written: long-term climate / weather / disasters with damage | Same subject in three places |
+| Public safety | Violence against women as cross-cutting, coverage 89% | Violence against women and sexual violence as primary types | They are types of occurrence |
+
+Curated total: **16 masters, 116 subcategories**. Boundaries between masters are written in the
+`taxonomy_v2.py` docstring.
+
+### Validation (step 7)
+
+Pending: the OpenAI credit ran out on the first call. The sample (1,200 uniform + 200 for the
+small masters, none seen by earlier steps) is drawn and saved; the run resumes as is.
+
+**Caveat:** dev's sources lean on UK and Portuguese feeds (cricket, rugby, Labour). Subcategory
+shares may differ in production; `Críquete` in particular may not earn its place there.
+
+**Conclusion so far:** the corpus supports four new masters (`Geopolítica`, `Entretenimento`,
+`Loterias`, `Estilo de Vida`) and a faceted, multi-label, geography-free subcategory layer.
+Whether the curated subcategories hold on unseen articles is step 7's question.

@@ -1,122 +1,146 @@
 # Proposta de taxonomia: categorias e subcategorias
 
 **Data:** 2026-09-28 · **Ambiente:** banco e Qdrant de desenvolvimento (somente leitura) ·
-**Base:** experimento 002 ([README](README.md))
+**Base:** experimento 002 ([README](README.md)) · **Definição completa:**
+[`src/lab/taxonomy_v2.py`](../../src/lab/taxonomy_v2.py)
 
 ---
 
 ## 1. Resumo
 
-- Olhamos **todas as 85.586 notícias** do dev, agrupadas pelos 45.970 tópicos, e dentro de cada
-  uma das 12 categorias atuais procuramos os assuntos que mais se repetem.
-- **Geopolítica merece categoria própria.** Guerras, diplomacia e relações entre países são
-  **~10% de todas as notícias**, o que faria dela a 4ª maior categoria. Hoje isso está dentro de
-  Política e espalhado por Segurança e Direitos Humanos.
-- **Entretenimento também** (~4%): famosos, novelas, streaming. Hoje está dentro de Cultura e até
-  de Esportes (vida amorosa de jogador).
-- **Loterias precisam de uma decisão:** são 1,3% das notícias, mais que Educação e Moradia
-  somadas, e não são assunto de debate.
-- Sugerimos **não misturar geografia com assunto**: "política dos EUA" é Política, não uma
-  categoria à parte. A abrangência (Brasil, internacional) já existe nos tópicos e pode virar um
-  filtro separado.
+- **16 categorias master** (hoje são 12) e **116 subcategorias**.
+- **4 masters novas:** **Geopolítica** (~10% das notícias), **Entretenimento** (~4%),
+  **Loterias** (1,3%) e **Estilo de Vida** (~1%).
+- **Uma notícia pode ter mais de uma subcategoria**, por exemplo "Futebol" e "Transferências".
+- **Nenhuma subcategoria usa geografia.** Não existe "futebol brasileiro" ou "política dos EUA".
+  A localização do leitor vira um filtro separado.
+- **Falta um passo:** validar a taxonomia em notícias que o processo ainda não viu (seção 6).
 
 ---
 
 ## 2. Como foi feito
 
-1. Cada tópico recebeu uma das 12 categorias atuais pelo modelo do experimento 001 (o "aluno",
-   83% de acerto contra revisão humana).
-2. Dentro de cada categoria, agrupamos os tópicos por semelhança de conteúdo (embeddings) e lemos
-   os grupos: **115 grupos** no total, cada um com seu tamanho e exemplos.
-3. Um grupo grande e coerente é candidato a **subcategoria**. Se ele não pertence de verdade à
-   categoria onde caiu, é candidato a **categoria nova**.
-
-Os percentuais são estimativas: o aluno erra ~17% das vezes e os grupos não são perfeitamente
-puros. Servem para comparar tamanhos, não como número exato.
+1. **Categorias master:** olhamos as **85.586 notícias** do dev, agrupadas por assunto dentro
+   das 12 categorias atuais, e procuramos grupos grandes que não pertenciam à categoria onde
+   estavam. Foi assim que Geopolítica apareceu: 39% do que hoje é Política são guerras e
+   diplomacia.
+2. **Subcategorias:** um LLM deu etiquetas genéricas de assunto para **3.825 notícias** (sem
+   nomes de país, clube, pessoa ou evento), outro LLM agrupou as etiquetas em subcategorias por
+   categoria, e a versão final foi **revisada à mão**. A revisão resolveu o que o processo
+   automático não decide sozinho, como de que lado fica uma fronteira.
 
 ---
 
 ## 3. Categorias master
 
-### 3.1 Propostas
-
-| Proposta | Tamanho | Por quê |
-|---|---|---|
-| **Nova: Geopolítica** | ~10% | Guerras (EUA-Irã, Rússia-Ucrânia, Israel-Palestina, Iêmen), diplomacia (EUA-China, BRICS, ONU, OTAN), relações do Brasil com outros países. É 39% do que hoje é Política |
-| **Nova: Entretenimento** | ~4% | Famosos e influenciadores, novelas, streaming e cinema comercial, mortes de artistas de TV. Cultura fica com artes, música, festivais e patrimônio |
-| **Ajustada: Política** | ~14% (hoje 22,5%) | Sem a geopolítica, fica com governo, eleições, Judiciário e Congresso, **de qualquer país** |
-
-### 3.2 Para decidir
-
-| Questão | Dados | Opções |
-|---|---|---|
-| **Loterias** | 1,3% das notícias (resultados da Mega-Sena, Lotofácil…) | (a) categoria técnica, fora das preferências do usuário; (b) subcategoria de Economia; (c) categoria normal |
-| **Estilo de vida** | ~1,1% (receitas, horóscopo, turismo) | Categoria nova, ou subcategoria de Entretenimento/Cultura |
-| **Moradia** | 0,2%, a menor de todas | Manter, ou juntar com obras urbanas e mobilidade numa categoria "Cidades" |
-| **Política de outros países** | 5,7% (Trump e a Suprema Corte dos EUA, Partido Trabalhista, AfD) | Fica em Política (nossa sugestão) ou vai para Geopolítica |
-| **Onde colocar acidentes e desastres** | 1,9% (rodovias, aviação, tubarões, deslizamentos). Hoje caem em Segurança | Subcategoria de Segurança, ou categoria "Tragédias e acidentes" |
-
-### 3.3 Avaliadas e não recomendadas como master
-
-| Candidata | Tamanho | Melhor como |
-|---|---|---|
-| Clima e tempo | 1,3% | Subcategoria de Meio Ambiente |
-| Automóveis | 1,2%, hoje dividido entre Economia e Transporte | Subcategoria de Transporte (e definir a fronteira) |
-| Games | 0,6% | Subcategoria de Tecnologia (ou de Entretenimento) |
-| Ciência | pequena e espalhada (espaço, estudos médicos) | Subcategoria de Tecnologia; estudos de saúde ficam em Saúde |
-
-### 3.4 Conferência com o padrão IPTC
-
-O IPTC Media Topics (padrão internacional de agências de notícias) tem 17 categorias de topo. Ele
-confirma as duas propostas: tem **"conflito, guerra e paz"** separado de política, e junta
-**"artes, cultura, entretenimento e mídia"** num nível mas separa entretenimento no nível de baixo.
-Também tem como categorias de topo **"desastre e acidente"**, **"tempo"**, **"estilo de vida e
-lazer"** e **"religião"**. Religião não apareceu como grupo relevante no nosso corpus.
-
----
-
-## 4. Subcategorias (rascunho)
-
-Tiradas dos grupos com volume real. Os nomes são provisórios.
-
-| Categoria | Subcategorias candidatas |
+| Categoria | O que muda |
 |---|---|
-| **Política** | Eleições e campanhas · Judiciário e STF · Congresso e legislação · Investigações e escândalos · Governos (federal, estadual, municipal) |
-| **Geopolítica** | Oriente Médio · Rússia e Ucrânia · EUA, China e Ásia · Relações exteriores do Brasil · Organismos e blocos (ONU, BRICS, UE, OTAN) · África |
-| **Economia** | Mercado financeiro · Inflação, juros e PIB · Impostos e contas públicas · Dívidas e finanças pessoais · Empresas e negócios · Comércio exterior e tarifas · Energia e petróleo |
-| **Esportes** | Futebol brasileiro (clubes e campeonatos) · Futebol internacional · Seleções e Copa do Mundo · Mercado da bola · Tênis · Automobilismo · Outros esportes (rugby, críquete, atletismo) · Gestão e bastidores (FIFA, SAF) |
-| **Tecnologia** | Inteligência artificial · Celulares e eletrônicos · Games · Espaço e ciência · Internet, apps e serviços digitais |
-| **Segurança** | Violência urbana e homicídios · Violência contra a mulher · Tráfico e crime organizado · Corrupção e crimes financeiros · Golpes e fraudes · Roubos e furtos · Acidentes e tragédias (se não virar master) |
-| **Saúde** | Doenças e pesquisa médica · Surtos e epidemias · Vacinação · SUS e sistema de saúde · Obesidade, nutrição e bem-estar |
-| **Cultura** | Música, shows e festivais · Artes e patrimônio · Agenda cultural |
-| **Entretenimento** | Famosos e influenciadores · Novelas e TV · Cinema e streaming |
-| **Meio Ambiente** | Mudança climática e eventos extremos · Previsão do tempo · Biodiversidade e conservação · Energia e sustentabilidade |
-| **Transporte** | Trânsito e obras viárias · Aviação · Automóveis |
-| **Educação** | Avaliação e desempenho escolar · Cursos e qualificação profissional · Educação pelo mundo |
-| **Moradia** | Mercado imobiliário e aluguel · Habitação social · Qualidade de vida urbana |
-| **Direitos Humanos** | Refugiados e crises humanitárias · Racismo, gênero e discriminação · Populações civis em conflitos |
-
-**Questão de desenho:** as subcategorias de Geopolítica estão por **região**, as outras por
-**assunto**. Região é o jeito natural de acompanhar uma guerra, mas é a mesma mistura de geografia
-com assunto que sugerimos evitar nas master. Vale decidir junto.
+| Política | Perde guerras e diplomacia para Geopolítica. Fica com a política **interna** de qualquer país |
+| **Geopolítica** (nova) | Relações entre países: guerras, diplomacia, alianças militares, sanções, ONU, BRICS |
+| Economia | Perde os resultados de loteria |
+| **Loterias** (nova) | Sorteios e prêmios (Mega-Sena, Lotofácil…). Sem subcategorias |
+| Esportes | Perde a vida pessoal de atletas para Entretenimento |
+| Tecnologia | — |
+| Segurança | Passa a incluir explicitamente **acidentes e tragédias** |
+| Saúde | — |
+| Cultura | Perde celebridades, TV, filmes e séries para Entretenimento |
+| **Entretenimento** (nova) | Famosos e influenciadores, TV, novelas, reality shows, filmes e séries |
+| **Estilo de Vida** (nova) | Viagens, gastronomia, moda, casa, pets, horóscopo, comportamento |
+| Transporte | Passa a incluir carros e o mercado automotivo |
+| Meio Ambiente | Passa a incluir **clima, previsão do tempo e desastres naturais** |
+| Educação | — |
+| Moradia | — |
+| Direitos Humanos | — |
 
 ---
 
-## 5. Ressalvas
+## 4. Subcategorias
 
-1. **O dev pesa em fontes do Reino Unido e de Portugal.** Por isso aparecem críquete, rugby galês
-   e o Partido Trabalhista. Em produção o tamanho das subcategorias pode ser outro; o das master
-   tende a mudar menos.
-2. **Os tamanhos são estimativas** (seção 2).
-3. **Nada aqui foi validado com rotulagem.** Depois da decisão, o próximo experimento rotula de
-   novo a amostra da 001 na taxonomia escolhida e mede se o modelo aprende as fronteiras novas.
-   Política × Geopolítica é a mais difícil.
+### 4.1 Como funcionam
+
+Cada categoria tem até **duas facetas**:
+
+- **Principal:** divide a categoria por um único critério, e quase toda notícia cai em uma.
+  Exemplos: em Esportes, a **modalidade**; em Política, o **assunto**.
+- **Transversal** (opcional): aspectos que se repetem em várias subcategorias principais, e a
+  notícia pode ter ou não. Exemplo em Esportes: Transferências, Gestão, Esporte feminino.
+
+Uma notícia recebe todas as subcategorias que se aplicam, das duas facetas. Exemplos:
+
+- Contratação de uma jogadora → **Futebol + Transferências + Esporte feminino**
+- Chuva forte que derruba casas → **Desastres naturais**
+- Reforma tributária votada no Congresso → **Projetos de lei e reformas** (Política), com
+  Economia como categoria secundária
+
+### 4.2 Lista
+
+| Categoria | Faceta principal | Faceta transversal |
+|---|---|---|
+| **Política** | Eleições e campanhas · Corrupção e investigações · Democracia e instituições · Governo e gestão pública · Projetos de lei e reformas · Partidos e alianças · Polarização, protestos e extremismo | — |
+| **Geopolítica** | Guerras e conflitos armados · Negociações de paz e cessar-fogo · Diplomacia e relações entre países · Defesa, alianças militares e armamentos · Sanções e disputas comerciais · Organismos e direito internacional · Migração e fronteiras | — |
+| **Economia** | Inflação, juros e PIB · Contas públicas e impostos · Mercado financeiro e investimentos · Empresas e negócios · Trabalho, emprego e renda · Custo de vida e consumo · Finanças pessoais e dívidas · Energia e commodities · Agronegócio · Comércio exterior | — |
+| **Loterias** | — | — |
+| **Esportes** | Futebol · Tênis · Automobilismo · Basquete · Vôlei · Lutas · Atletismo e corrida · Ciclismo · Esportes aquáticos · Rúgbi · Críquete · Golfe · Jogos Olímpicos e multiesportivos | Transferências e contratos · Gestão, finanças e bastidores · Esporte feminino |
+| **Tecnologia** | Inteligência artificial · Internet, redes sociais e apps · Celulares e eletrônicos · Games · Espaço e ciência · Telecomunicações e conectividade · Robótica, chips e indústria tech | Regulação e ética · Segurança digital e privacidade |
+| **Segurança** | Crimes violentos · Violência contra a mulher · Violência sexual e abuso infantil · Crime organizado e tráfico · Roubos, furtos e golpes · Acidentes e tragédias · Polícia, prisões e política de segurança | — |
+| **Saúde** | Doenças infecciosas e vacinas · Doenças crônicas e câncer · Tratamentos e medicamentos · Saúde mental · Nutrição, exercício e obesidade · SUS e sistema de saúde | Prevenção · Pesquisa médica · Política e regulação da saúde |
+| **Cultura** | Música · Artes visuais · Livros e literatura · Teatro e dança · Patrimônio e história | Política e fomento cultural |
+| **Entretenimento** | Famosos e influenciadores · TV, novelas e reality shows · Filmes e séries | — |
+| **Estilo de Vida** | Viagens e turismo · Gastronomia e receitas · Moda e beleza · Casa e decoração · Animais de estimação · Astrologia e horóscopo · Relacionamentos e comportamento | — |
+| **Transporte** | Aviação · Rodovias e trânsito · Mobilidade urbana e transporte público · Carros e mercado automotivo · Ferrovias, portos e navegação | Infraestrutura e concessões · Qualidade do serviço e acessibilidade |
+| **Meio Ambiente** | Mudanças climáticas · Clima e previsão do tempo · Desastres naturais · Biodiversidade e animais · Desmatamento e uso da terra · Poluição e saneamento · Transição energética e sustentabilidade | — |
+| **Educação** | Educação infantil e fundamental · Ensino médio · Ensino superior · Cursos técnicos e profissionalizantes | Provas e avaliações · Professores · Política educacional e financiamento |
+| **Moradia** | Mercado imobiliário · Aluguel · Habitação social · Urbanismo e planejamento urbano · Construção · Pessoas em situação de rua | — |
+| **Direitos Humanos** | Liberdades civis · Igualdade racial, povos indígenas e religião · Migrantes e refugiados · Direitos LGBTQIA+ · Direitos das mulheres e igualdade de gênero · Crianças, pessoas com deficiência e grupos vulneráveis | Crises humanitárias · Ativismo e conscientização |
+
+A definição de cada subcategoria, com o que entra e o que não entra, está em
+`src/lab/taxonomy_v2.py`.
+
+### 4.3 Fronteiras entre categorias
+
+Assuntos que poderiam cair em duas categorias têm um lado definido:
+
+| Assunto | Fica em | E não em |
+|---|---|---|
+| Acidentes (trânsito, aviação, afogamento, incêndio, desabamento) | Segurança | Transporte |
+| Desastres naturais (enchentes, deslizamentos, secas, queimadas) | Meio Ambiente | Segurança |
+| Música como arte, shows e festivais | Cultura | Entretenimento |
+| Vida pessoal de músicos e atletas | Entretenimento | Cultura / Esportes |
+| Filmes e séries | Entretenimento | Cultura |
+| Carros e mercado automotivo | Transporte | Economia |
+| Golpes e crimes digitais | Segurança | Tecnologia |
+| Beleza, autocuidado e relacionamentos | Estilo de Vida | Saúde |
+| Direitos de migrantes e refugiados | Direitos Humanos | Geopolítica |
+| Política migratória entre países | Geopolítica | Direitos Humanos |
 
 ---
 
-## 6. O que precisamos do time
+## 5. Decisões já tomadas (com o responsável pelo produto)
 
-1. Aprovar ou ajustar **Geopolítica** e **Entretenimento** como master.
-2. Decidir as questões da seção 3.2, em especial **Loterias**.
-3. Confirmar **geografia como filtro separado**, fora da taxonomia.
-4. Revisar a lista de subcategorias da seção 4: nomes, o que falta e o que sobra.
+1. **Geopolítica, Entretenimento, Loterias e Estilo de Vida** como categorias master.
+2. **Subcategorias multi-label**, organizadas em facetas.
+3. **Sem geografia** na taxonomia: a localização é um filtro à parte.
+4. **Esportes por modalidade.** A regra de tamanho mínimo tinha juntado todos os esportes menos
+   o futebol em "esportes individuais", mas quem acompanha tênis quer "Tênis".
+5. **Política por assunto**, como as outras categorias. A divisão por instituição (Executivo,
+   Legislativo, Judiciário) foi considerada e descartada.
+
+---
+
+## 6. O que ainda falta
+
+- **Validação:** aplicar a taxonomia a **1.400 notícias novas** e medir quanto de cada
+  categoria cai numa subcategoria, quais subcategorias quase não aparecem e quais se confundem.
+  A amostra já está separada; a execução parou porque os créditos da API acabaram.
+- **Ressalva:** o dev puxa muito de feeds do Reino Unido e de Portugal. Por isso aparecem
+  críquete, rúgbi e o Partido Trabalhista. **Críquete** em especial pode não se justificar em
+  produção.
+
+---
+
+## 7. O que precisamos do time
+
+1. Aprovar as **4 categorias master novas**.
+2. Aprovar **geografia como filtro separado**.
+3. Revisar a lista de subcategorias da seção 4.2: nomes, o que falta e o que sobra.
+4. Decidir se **Loterias** aparece nas preferências do usuário ou fica como categoria técnica.

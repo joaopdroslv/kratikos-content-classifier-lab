@@ -28,9 +28,9 @@ import pandas as pd
 from pydantic import create_model
 from sqlalchemy import text
 
-from lab import llm
+from lab import llm, metadata
 from lab.config import DATA_DIR, get_engine
-from lab.taxonomy_v2 import CATEGORIES, SLUGS, SUBCATEGORIES
+from lab.taxonomy_v2 import CATEGORIES, SLUGS, SUBCATEGORIES, TAXONOMY_VERSION
 
 DIR = DATA_DIR / "002"
 MODEL = os.getenv("VALIDATE_MODEL", "gpt-4.1")
@@ -101,6 +101,7 @@ def draw_sample() -> pd.DataFrame:
             parts.append(part.assign(stratum=f"extra:{category}"))
             used |= set(part["id"])
     sample = pd.concat(parts, ignore_index=True).drop_duplicates("id")
+    sample["sampled_at"] = metadata.now()
     sample.to_parquet(path, index=False)
     return sample
 
@@ -223,7 +224,7 @@ async def main(limit: int | None) -> None:
         system=system,
         schema=schema,
         model=MODEL,
-        extra={"prompt_version": PROMPT_VERSION},
+        extra={"prompt_version": PROMPT_VERSION, "taxonomy_version": TAXONOMY_VERSION},
         desc="validate",
     )
     records = [

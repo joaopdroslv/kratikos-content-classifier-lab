@@ -10,5 +10,10 @@ rules live there.
 - **One folder per experiment** under `experiments/NNN-short-name/`, with a README stating the
   question, the method and the measured result, so the conclusion survives the code.
 - Pulled data and trained models go to `data/` and `models/` (gitignored), never into git.
+- **Every output row follows the [metadata standard](README.md#metadata-standard):** LLM answers
+  carry `model`, `prompt_version`, `created_at`; rows read from the database carry `sampled_at`.
+  Bump `prompt_version` on any prompt or schema change, and start a fresh output file.
+- Each experiment README says which steps are deterministic, which are resumable, and which read
+  the live database.
 - Code and docs in English; category/subcategory display names in pt-BR.
 - Format with isort then black.

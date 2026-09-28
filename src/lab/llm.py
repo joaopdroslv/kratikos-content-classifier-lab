@@ -1,7 +1,8 @@
 """Resumable, concurrent structured-output calls — the loop of 001's `03_label.py`, made generic.
 
 Every answer is appended to a JSONL file as it arrives, keyed by `id`; ids already there without an
-error are skipped, so an interrupted run is simply run again.
+error are skipped, so an interrupted run is simply run again. Every answer carries `model` and
+`created_at`; the caller adds `prompt_version` (and any other metadata) through `extra`.
 """
 
 import asyncio
@@ -12,6 +13,8 @@ from pathlib import Path
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from tqdm.asyncio import tqdm
+
+from lab import metadata
 
 ATTEMPTS = 4
 
@@ -61,6 +64,7 @@ async def _one(
                     **completion.choices[0].message.parsed.model_dump(),
                     "model": model,
                     **extra,
+                    "created_at": metadata.now(),
                 }
                 break
             except Exception as error:

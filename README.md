@@ -67,3 +67,25 @@ models/             trained artifacts (gitignored)
   committed.
 - **Code and docs in English, user-facing labels in pt-BR** (category names are shown to users),
   matching `kratikos-ai-backend/docs/standards/language.md`.
+
+## Metadata standard
+
+Every row an experiment produces carries the minimum needed to tell where it came from. Kept
+deliberately small: these are experiments, not a pipeline.
+
+| Row kind | Fields | Written by |
+|---|---|---|
+| LLM answer (labels, tags, assignments, validation…) | `model`, `prompt_version`, `created_at` | `lab.llm.run` writes `model` and `created_at`; the script passes `prompt_version` in `extra` |
+| LLM answer whose prompt embeds a taxonomy | + `taxonomy_version` | the script, from `lab.taxonomy_v2.TAXONOMY_VERSION` |
+| Row read from the live database or Qdrant (samples, topics) | `sampled_at` | the script, when it reads |
+
+- **Timestamps** are UTC, ISO 8601, to the second (`lab.metadata.now()`).
+- **`prompt_version`** is `NNN-<purpose>-vK` (e.g. `002-tag-v5`). Bump K on ANY change to the
+  prompt text or to the output schema, and start a fresh output file (or delete the old one): the
+  LLM steps are resumable by `id`, so answers under the old prompt would otherwise be kept.
+- **`TAXONOMY_VERSION`** is bumped on any change to a master or subcategory.
+- Deterministic steps (clusters, predictions, metrics) add nothing: the code and their inputs
+  already say where they came from.
+- Outputs produced before this standard (2026-09-28) were back-filled with what is true only:
+  `sampled_at` from the file's modification time (each sample is written once), known
+  `prompt_version`s, and `created_at: null` on earlier LLM answers.

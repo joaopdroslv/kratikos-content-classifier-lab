@@ -22,6 +22,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 from tqdm.asyncio import tqdm
 
+from lab import metadata
 from lab.config import DATA_DIR
 from lab.taxonomy import CATEGORIES, SLUGS
 
@@ -109,6 +110,7 @@ async def _label_one(
                     **_normalise(labeling),
                     "model": MODEL,
                     "prompt_version": PROMPT_VERSION,
+                    "created_at": metadata.now(),
                 }
                 break
             except Exception as error:

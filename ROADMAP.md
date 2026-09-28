@@ -20,7 +20,7 @@ the plan that ties them together: update it when an item closes or a decision is
 |---|---|---|
 | 001 | Baseline on the 12 current categories (teacher–student on the Qdrant vectors) | **done** |
 | 001 | Human review of the teacher (150 articles) | **done** |
-| 002 | Taxonomy proposal: master categories + subcategories | **done** |
+| 002 | Taxonomy proposal: master categories + subcategories | **done**, validation (step 7) pending OpenAI credit |
 | — | Team decision on the taxonomy | **next** (input: [002 proposal](experiments/002-taxonomy-proposal/proposal.pt-BR.md)) |
 | — | Labelling and student on the new taxonomy | blocked on the decision |
 | — | Port to `kratikos-ai-backend` | later |
@@ -39,10 +39,13 @@ the plan that ties them together: update it when an item closes or a decision is
 **002 — taxonomy proposal** ([README](experiments/002-taxonomy-proposal/README.md),
 [proposal](experiments/002-taxonomy-proposal/proposal.pt-BR.md))
 
-- Clustered all 85.6k dev articles (via their 46k topics) inside each category.
-- Geopolitics is ~10% of all articles (39% of today's politics); entertainment ~4%; lotteries
-  1.3%. Proposed: `Geopolítica` and `Entretenimento` as new masters, geography as a separate
-  filter, and a subcategory draft per master.
+- Masters: clustered all 85.6k dev articles (via their 46k topics) inside each category.
+  Geopolitics is ~10% of all articles (39% of today's politics); entertainment ~4%; lotteries
+  1.3%. Adopted as new masters: `Geopolítica`, `Entretenimento`, `Loterias`, `Estilo de Vida`.
+- Subcategories: induced from LLM tags on 3,825 articles, consolidated per master, then curated
+  by hand into [`src/lab/taxonomy_v2.py`](src/lab/taxonomy_v2.py): **16 masters, 116
+  subcategories**, multi-label, in a primary facet (sports by modality, politics by subject) and
+  an optional cross-cutting facet. No geography: location is a separate filter.
 
 ## Next
 

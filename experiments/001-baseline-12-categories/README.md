@@ -43,6 +43,17 @@ uv run python experiments/001-baseline-12-categories/05_review_sheet.py
 uv run python experiments/001-baseline-12-categories/06_score_review.py
 ```
 
+## Re-running
+
+| Step | Behaviour |
+|---|---|
+| `01_sample` | **Reads the live database.** Seeded, but a dev database that has ingested more articles draws a different sample, and every later step changes with it |
+| `02_vectors` | Reads Qdrant; same vectors for the same sample |
+| `03_label` | **Resumable, costs API.** Skips ids already in `labels.jsonl`; a new prompt needs a new `PROMPT_VERSION` and a fresh file |
+| `04_evaluate` | Deterministic (seeded split and CV). Overwrites `results.json` and `test_predictions.parquet` |
+| `05_review_sheet` | Deterministic. **Refuses to overwrite a `review.csv` that already exists**: it holds the human review |
+| `06_score_review` | Read-only, deterministic |
+
 ## Result (2026-09-25, dev)
 
 3,075 articles labelled by the teacher, no failures. Split: train 2,321 / test 754, grouped by topic.

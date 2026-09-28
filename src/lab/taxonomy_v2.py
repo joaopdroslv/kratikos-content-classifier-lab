@@ -27,6 +27,10 @@ Boundaries between masters that the subcategories rely on:
 
 from dataclasses import dataclass
 
+# Bump on ANY change to a master or subcategory (name, definition, added, removed): LLM answers
+# record it, and answers given under another version are not comparable.
+TAXONOMY_VERSION = "2.0"
+
 
 @dataclass(frozen=True)
 class Subcategory:

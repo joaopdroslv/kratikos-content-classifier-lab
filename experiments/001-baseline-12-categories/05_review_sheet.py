@@ -42,6 +42,10 @@ def main() -> None:
         ]
     ]
     path = DIR / "review.csv"
+    if path.exists():
+        raise SystemExit(
+            f"{path} exists and may hold a human review; move it away to regenerate"
+        )
     # BOM so Excel reads the accents
     sheet.to_csv(path, index=False, encoding="utf-8-sig")
     print(f"wrote {len(sheet)} rows to {path}")
