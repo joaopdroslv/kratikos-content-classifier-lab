@@ -23,6 +23,7 @@ subcategories from text, then validate the curated result.
 | 5 | `05_tag.py` | `tags.jsonl`: per article, a v2 master, a `main_tag` and an optional `aspect_tag`, both generic (no place, person, club, event) |
 | 6 | `06_consolidate.py` | `subcategories.json`: per master, faceted subcategories proposed by an LLM from the tags, checked against rules, revised up to twice |
 | 7 | `07_validate.py` | `validation.md`: the curated taxonomy applied to 1,400 unseen articles |
+| 8 | `08_review_sheet.py` | `taxonomia_v2_validacao.xlsx`: one row per subcategory with its validation share, for the team to approve |
 
 ```bash
 uv run python experiments/002-taxonomy-proposal/01_topics.py        # ... through 07_validate.py
@@ -74,7 +75,7 @@ Lessons from the runs, kept for the next taxonomy work:
 
 ```
 01 ─► 02 ─► 03                                   (read by a person → Result below)
-       └─► 04 ─► 05 ─► 06 ─► [hand curation] ─► src/lab/taxonomy_v2.py ─► 07
+       └─► 04 ─► 05 ─► 06 ─► [hand curation] ─► src/lab/taxonomy_v2.py ─► 07 ─► 08
 ```
 
 | Step | Behaviour |
@@ -85,6 +86,7 @@ Lessons from the runs, kept for the next taxonomy work:
 | `05_tag` | **Resumable, costs API.** Skips ids already in `tags.jsonl`; a new prompt needs a new `PROMPT_VERSION` and a fresh file |
 | `06_consolidate` | **Costs API, not deterministic**: `gpt-4.1` may propose slightly different subcategories. Tag assignments are resumable per proposal. Overwrites `subcategories.json` and `consolidation_log.jsonl` |
 | `07_validate` | Draws its sample once (`validation_sample.parquet`; delete it to redraw). **Resumable, costs API**; answers go to a file named by the prompt's hash, so a changed taxonomy starts a new file |
+| `08_review_sheet` | Deterministic, no API. Reads step 7's 2.0 answers and carries them to the current taxonomy through `REMAP`; fails if a 2.0 subcategory has no mapping. **Overwrites the xlsx**: move a filled copy out first |
 
 Re-running 06 does **not** change 07: 07 reads the curated `taxonomy_v2.py`, which only a person
 edits.
@@ -139,17 +141,44 @@ technology and housing came out close to final. It failed where an editorial cal
 | Environment | Climate change, weather and natural disasters overlapping | Boundaries written: long-term climate / weather / disasters with damage | Same subject in three places |
 | Public safety | Violence against women as cross-cutting, coverage 89% | Violence against women and sexual violence as primary types | They are types of occurrence |
 
-Curated total: **16 masters, 116 subcategories**. Boundaries between masters are written in the
-`taxonomy_v2.py` docstring.
+Curated total: **16 masters, 116 subcategories** (taxonomy 2.0). Boundaries between masters are
+written in the `taxonomy_v2.py` docstring.
 
 ### Validation (step 7)
 
-Pending: the OpenAI credit ran out on the first call. The sample (1,200 uniform + 200 for the
-small masters, none seen by earlier steps) is drawn and saved; the run resumes as is.
+Run on 2026-09-29 with `gpt-4.1` on taxonomy 2.0: 1,390 of 1,394 articles answered (the rest
+hit rate limits). Full report in `data/002/validation.md`.
+
+- **Coverage holds.** 92–100% of each master's articles got a subcategory of their primary master
+  (lotteries 0% by design: no subcategories), "none fits" at 0–11%, and subcategories chosen
+  outside the article's masters at 0–1%: the masters do not bleed into each other.
+- **Uniform-stratum mix:** sports 26%, politics 13%, geopolitics 12%, economy 11%, public_safety
+  9%, technology 7%, environment 5%, health 5%; every other master under 4%.
+- **Empty or tiny subcategories:** basketball and volleyball (0%, likely the UK-leaning dev feeds),
+  deforestation, teachers and homelessness (0%, on masters of 28–68 articles), and a few at 3–4%.
+- **Blurriest same-facet pairs** (co-occurring in 6–7 articles): elections + parties, diplomacy +
+  international bodies, diplomacy + wars, financial markets + macroeconomy.
+
+### Manual review → taxonomy 2.1 (2026-09-29)
+
+Decided with the product owner after reading the validation, without a new run (step 8 carries
+the 2.0 answers over by merging subcategories):
+
+| Master | 2.0 | 2.1 | Why |
+|---|---|---|---|
+| Human rights | Primary facet by protected group: racial/indigenous/religious, LGBTQIA+, women | By type of issue: one `Discriminação e igualdade` for every group; `Crianças e grupos vulneráveis`, `Ativismo` renamed shorter | No group gets a theme of its own; coverage kept (the umbrella holds 61% of the master) |
+| Culture | 5 disciplines | + `Religião` (faith and institutions) | Religion news had no home; religious freedom stays in human rights |
+| Housing | Real estate, rent, social housing, homelessness separate | `Mercado imobiliário e aluguel` + `Acesso à moradia` (tenants' rights, programmes, evictions, homelessness) | A small master; homelessness at 0% |
+| Environment | `Clima e previsão do tempo` | `Tempo e previsão` | "Clima" meant both climate and weather; the subcategories stay apart: climate policy is debated, forecasts are not |
+| Health | `SUS e sistema de saúde` | `Sistemas e serviços de saúde` (SUS named in the definition) | Geography is not a category axis |
+
+Total: **16 masters, 113 subcategories**. `religion` has no validation share yet, and
+`housing_access` counts every 2.0 `rent` article, including rents as a market.
 
 **Caveat:** dev's sources lean on UK and Portuguese feeds (cricket, rugby, Labour). Subcategory
 shares may differ in production; `Críquete` in particular may not earn its place there.
 
 **Conclusion so far:** the corpus supports four new masters (`Geopolítica`, `Entretenimento`,
 `Loterias`, `Estilo de Vida`) and a faceted, multi-label, geography-free subcategory layer.
-Whether the curated subcategories hold on unseen articles is step 7's question.
+On unseen articles the curated subcategories hold (step 7); 2.1 awaits the team's review
+(step 8's sheet).

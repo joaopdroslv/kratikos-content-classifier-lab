@@ -8,7 +8,7 @@
 
 ## 1. Resumo
 
-- **16 categorias master** (hoje são 12) e **116 subcategorias**.
+- **16 categorias master** (hoje são 12) e **113 subcategorias**.
 - **4 masters novas:** **Geopolítica** (~10% das notícias), **Entretenimento** (~4%),
   **Loterias** (1,3%) e **Estilo de Vida** (~1%).
 - **Uma notícia pode ter mais de uma subcategoria**, por exemplo "Futebol" e "Transferências".
@@ -83,15 +83,15 @@ Uma notícia recebe todas as subcategorias que se aplicam, das duas facetas. Exe
 | **Esportes** | Futebol · Tênis · Automobilismo · Basquete · Vôlei · Lutas · Atletismo e corrida · Ciclismo · Esportes aquáticos · Rúgbi · Críquete · Golfe · Jogos Olímpicos e multiesportivos | Transferências e contratos · Gestão, finanças e bastidores · Esporte feminino |
 | **Tecnologia** | Inteligência artificial · Internet, redes sociais e apps · Celulares e eletrônicos · Games · Espaço e ciência · Telecomunicações e conectividade · Robótica, chips e indústria tech | Regulação e ética · Segurança digital e privacidade |
 | **Segurança** | Crimes violentos · Violência contra a mulher · Violência sexual e abuso infantil · Crime organizado e tráfico · Roubos, furtos e golpes · Acidentes e tragédias · Polícia, prisões e política de segurança | — |
-| **Saúde** | Doenças infecciosas e vacinas · Doenças crônicas e câncer · Tratamentos e medicamentos · Saúde mental · Nutrição, exercício e obesidade · SUS e sistema de saúde | Prevenção · Pesquisa médica · Política e regulação da saúde |
-| **Cultura** | Música · Artes visuais · Livros e literatura · Teatro e dança · Patrimônio e história | Política e fomento cultural |
+| **Saúde** | Doenças infecciosas e vacinas · Doenças crônicas e câncer · Tratamentos e medicamentos · Saúde mental · Nutrição, exercício e obesidade · Sistemas e serviços de saúde | Prevenção · Pesquisa médica · Política e regulação da saúde |
+| **Cultura** | Música · Artes visuais · Livros e literatura · Teatro e dança · Patrimônio e história · Religião | Política e fomento cultural |
 | **Entretenimento** | Famosos e influenciadores · TV, novelas e reality shows · Filmes e séries | — |
 | **Estilo de Vida** | Viagens e turismo · Gastronomia e receitas · Moda e beleza · Casa e decoração · Animais de estimação · Astrologia e horóscopo · Relacionamentos e comportamento | — |
 | **Transporte** | Aviação · Rodovias e trânsito · Mobilidade urbana e transporte público · Carros e mercado automotivo · Ferrovias, portos e navegação | Infraestrutura e concessões · Qualidade do serviço e acessibilidade |
-| **Meio Ambiente** | Mudanças climáticas · Clima e previsão do tempo · Desastres naturais · Biodiversidade e animais · Desmatamento e uso da terra · Poluição e saneamento · Transição energética e sustentabilidade | — |
+| **Meio Ambiente** | Mudanças climáticas · Tempo e previsão · Desastres naturais · Biodiversidade e animais · Desmatamento e uso da terra · Poluição e saneamento · Transição energética e sustentabilidade | — |
 | **Educação** | Educação infantil e fundamental · Ensino médio · Ensino superior · Cursos técnicos e profissionalizantes | Provas e avaliações · Professores · Política educacional e financiamento |
-| **Moradia** | Mercado imobiliário · Aluguel · Habitação social · Urbanismo e planejamento urbano · Construção · Pessoas em situação de rua | — |
-| **Direitos Humanos** | Liberdades civis · Igualdade racial, povos indígenas e religião · Migrantes e refugiados · Direitos LGBTQIA+ · Direitos das mulheres e igualdade de gênero · Crianças, pessoas com deficiência e grupos vulneráveis | Crises humanitárias · Ativismo e conscientização |
+| **Moradia** | Mercado imobiliário e aluguel · Acesso à moradia · Urbanismo e planejamento urbano · Construção | — |
+| **Direitos Humanos** | Liberdades civis · Discriminação e igualdade · Migrantes e refugiados · Crianças e grupos vulneráveis | Crises humanitárias · Ativismo |
 
 A definição de cada subcategoria, com o que entra e o que não entra, está em
 `src/lab/taxonomy_v2.py`.
@@ -129,9 +129,17 @@ Assuntos que poderiam cair em duas categorias têm um lado definido:
 
 ## 6. O que ainda falta
 
-- **Validação:** aplicar a taxonomia a **1.400 notícias novas** e medir quanto de cada
-  categoria cai numa subcategoria, quais subcategorias quase não aparecem e quais se confundem.
-  A amostra já está separada; a execução parou porque os créditos da API acabaram.
+- **Validação (feita em 29/09):** a taxonomia foi aplicada a **1.390 notícias novas**. De 92% a
+  100% dos artigos de cada categoria caíram numa subcategoria dela, e quase nenhum recebeu
+  subcategoria de outra categoria. Algumas subcategorias ficaram vazias (basquete, vôlei,
+  desmatamento, professores); a planilha de revisão mostra o percentual de cada uma.
+- **Ajustes da versão 2.1 (29/09):** Direitos Humanos passou a se dividir por tipo de questão, com
+  uma só subcategoria "Discriminação e igualdade" no lugar das subcategorias por grupo; Religião
+  entrou em Cultura; Aluguel, Habitação social e Situação de rua viraram "Acesso à moradia";
+  "Clima e previsão do tempo" virou "Tempo e previsão"; "SUS e sistema de saúde" virou
+  "Sistemas e serviços de saúde".
+- **Revisão do time:** aprovar, ajustar ou recusar cada subcategoria na planilha
+  `taxonomia_v2_validacao.xlsx`.
 - **Ressalva:** o dev puxa muito de feeds do Reino Unido e de Portugal. Por isso aparecem
   críquete, rúgbi e o Partido Trabalhista. **Críquete** em especial pode não se justificar em
   produção.

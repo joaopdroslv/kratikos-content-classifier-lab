@@ -22,14 +22,20 @@ Boundaries between masters that the subcategories rely on:
 - all film and series → entertainment;
 - vehicles and the automotive market → transport; digital crime → public_safety;
 - health of a person → health; beauty, self-care and relationships → lifestyle;
-- rights of migrants and refugees → human_rights; migration policy between states → geopolitics.
+- rights of migrants and refugees → human_rights; migration policy between states → geopolitics;
+- religion as faith and institution → culture; religious freedom and intolerance → human_rights.
+
+2.1 (2026-09-29, manual review): human_rights split by type of issue instead of protected group
+(racial/ethnic/religious, LGBTQIA+ and women's rights merged into `discrimination_equality`);
+`religion` added to culture; rent, social housing and homelessness merged into `housing_access`;
+`weather` renamed so "clima" means only climate; the health system named without SUS.
 """
 
 from dataclasses import dataclass
 
 # Bump on ANY change to a master or subcategory (name, definition, added, removed): LLM answers
 # record it, and answers given under another version are not comparable.
-TAXONOMY_VERSION = "2.0"
+TAXONOMY_VERSION = "2.1"
 
 
 @dataclass(frozen=True)
@@ -462,9 +468,9 @@ CATEGORIES: tuple[Master, ...] = (
                 ),
                 S(
                     "health_system",
-                    "SUS e sistema de saúde",
-                    "Hospitals, public and private health services, access, waiting lists and "
-                    "health workers.",
+                    "Sistemas e serviços de saúde",
+                    "Public and private health services (the SUS, health insurance plans, other "
+                    "countries' systems), hospitals, access, waiting lists and health workers.",
                 ),
             ),
         ),
@@ -493,10 +499,10 @@ CATEGORIES: tuple[Master, ...] = (
         "culture",
         "Cultura",
         "Music, concerts and festivals, visual arts, literature, theatre and dance, heritage, "
-        "museums, cultural agenda and cultural policy, and the artists who make them. Film and "
-        "series belong to entertainment.",
+        "museums, religion, cultural agenda and cultural policy, and the artists who make them. "
+        "Film and series belong to entertainment.",
         primary=Facet(
-            "artistic discipline",
+            "cultural field",
             (
                 S(
                     "music",
@@ -523,6 +529,12 @@ CATEGORIES: tuple[Master, ...] = (
                     "heritage_history",
                     "Patrimônio e história",
                     "Museums, historic heritage, archaeology, traditions and popular festivals.",
+                ),
+                S(
+                    "religion",
+                    "Religião",
+                    "Religions, churches and religious leaders, faith and religious celebrations. "
+                    "Religious freedom and intolerance belong to human_rights.",
                 ),
             ),
         ),
@@ -670,7 +682,7 @@ CATEGORIES: tuple[Master, ...] = (
                 ),
                 S(
                     "weather",
-                    "Clima e previsão do tempo",
+                    "Tempo e previsão",
                     "Forecasts, cold and heat waves, rain and weather alerts as weather.",
                 ),
                 S(
@@ -756,21 +768,22 @@ CATEGORIES: tuple[Master, ...] = (
     Master(
         "housing",
         "Moradia",
-        "Housing, real estate, rent, housing policy and social housing, urban planning and "
-        "homelessness.",
+        "Housing, real estate and the rental market, access to housing, housing policy, urban "
+        "planning and construction.",
         primary=Facet(
             "housing issue",
             (
                 S(
                     "real_estate",
-                    "Mercado imobiliário",
-                    "Buying and selling property, prices, launches and financing.",
+                    "Mercado imobiliário e aluguel",
+                    "Buying, selling and renting property as a market: prices, rents, launches, "
+                    "financing and short-term rentals.",
                 ),
-                S("rent", "Aluguel", "Rents, tenancy law and short-term rentals."),
                 S(
-                    "social_housing",
-                    "Habitação social",
-                    "Housing programmes, social and affordable housing.",
+                    "housing_access",
+                    "Acesso à moradia",
+                    "Affordability, tenants' rights and tenancy law, housing programmes and "
+                    "social housing, evictions, precarious housing and homelessness.",
                 ),
                 S(
                     "urban_planning",
@@ -782,11 +795,6 @@ CATEGORIES: tuple[Master, ...] = (
                     "Construção",
                     "Construction of homes, building methods and the construction sector.",
                 ),
-                S(
-                    "homelessness",
-                    "Pessoas em situação de rua",
-                    "Homelessness, evictions and precarious housing.",
-                ),
             ),
         ),
     ),
@@ -796,7 +804,7 @@ CATEGORIES: tuple[Master, ...] = (
         "Civil rights, equality, discrimination and racism, gender and LGBTQ+ rights, indigenous "
         "peoples, migrants and refugees, humanitarian crises and freedom of expression.",
         primary=Facet(
-            "right or protected group",
+            "type of rights issue",
             (
                 S(
                     "civil_political_rights",
@@ -804,25 +812,21 @@ CATEGORIES: tuple[Master, ...] = (
                     "Freedom of expression and of the press, privacy, and abuses of state power.",
                 ),
                 S(
-                    "racial_ethnic_religious",
-                    "Igualdade racial, povos indígenas e religião",
-                    "Racism, indigenous peoples, ethnic minorities and religious freedom.",
+                    "discrimination_equality",
+                    "Discriminação e igualdade",
+                    "Discrimination and equal rights of any group: racism, indigenous peoples and "
+                    "ethnic minorities, gender equality and women's rights, LGBTQIA+ rights, "
+                    "religious freedom and intolerance. Violence against women as crime belongs "
+                    "to public_safety.",
                 ),
                 S(
                     "migrants_refugees",
                     "Migrantes e refugiados",
                     "The rights and plight of migrants and refugees.",
                 ),
-                S("lgbtq", "Direitos LGBTQIA+", "LGBTQIA+ rights and discrimination."),
-                S(
-                    "gender_women",
-                    "Direitos das mulheres e igualdade de gênero",
-                    "Women's rights and gender equality. Violence against women as crime belongs "
-                    "to public_safety.",
-                ),
                 S(
                     "children_vulnerable",
-                    "Crianças, pessoas com deficiência e grupos vulneráveis",
+                    "Crianças e grupos vulneráveis",
                     "Rights of children, the elderly, people with disabilities and other "
                     "vulnerable groups.",
                 ),
@@ -838,7 +842,7 @@ CATEGORIES: tuple[Master, ...] = (
                 ),
                 S(
                     "activism",
-                    "Ativismo e conscientização",
+                    "Ativismo",
                     "Campaigns, movements and awareness dates for rights.",
                 ),
             ),
