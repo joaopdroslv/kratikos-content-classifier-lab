@@ -10,6 +10,7 @@ PRICES = {
     # model: (input, cached input, output)
     "gpt-4.1": (2.00, 0.50, 8.00),
     "gpt-4.1-mini": (0.40, 0.10, 1.60),
+    "gpt-5.4-mini": (0.75, 0.075, 4.50),
     "gpt-6-luna": (0.10, 0.01, 0.50),
 }
 

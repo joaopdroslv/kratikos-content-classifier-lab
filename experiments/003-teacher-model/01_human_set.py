@@ -35,6 +35,7 @@ NONE = review_001.NONE
 CANDIDATES = {
     "gpt-6-luna_none": ("gpt-6-luna", "none"),
     "gpt-6-luna_low": ("gpt-6-luna", "low"),
+    "gpt-5.4-mini_none": ("gpt-5.4-mini", "none"),
 }
 
 
