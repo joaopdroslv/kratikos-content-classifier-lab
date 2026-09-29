@@ -97,8 +97,9 @@ Two practical changes when building it:
 
 - **Do not overwrite `src/lab/taxonomy.py`**, which defines 001's labels; the new taxonomy is added
   next to it, versioned, so 001 stays reproducible.
-- **Move the shared logic out of `04_evaluate.py`** (metrics, student training, topic-grouped
-  split) into `src/lab/`, so later experiments import it instead of copying it.
+- ~~Move the shared logic out of `04_evaluate.py`~~ **done** (2026-09-29): `lab.metrics` (score,
+  per-label) and `lab.student` (label matrix, topic-grouped split, thresholds, student selection),
+  taxonomy-agnostic (every function takes the ordered `slugs`). 001's outputs reproduce exactly.
 
 On top of the 001 method:
 

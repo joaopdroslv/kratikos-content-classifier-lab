@@ -5,11 +5,8 @@ Candidates (all predict a `primary` and a label set over the 12 slugs):
 - zero_shot: cosine between the article vector and each category's definition vector
 - student: one-vs-rest logistic regression on the article vectors, trained on teacher labels
 
-Metrics:
-- primary_acc: predicted primary == teacher primary, "no category" included as a class
-- primary_in_set: predicted primary is one of the teacher's labels (items the teacher labelled)
-- micro_f1 / macro_f1: the label sets, as multi-label
-Reported on the whole test split and on its `uniform` stratum (the unbiased one).
+Metrics (`lab.metrics`, with the teacher as reference): primary_acc, primary_in_set, micro_f1,
+macro_f1. Reported on the whole test split and on its `uniform` stratum (the unbiased one).
 
     uv run python experiments/001-baseline-12-categories/04_evaluate.py
 """
@@ -20,23 +17,26 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 from openai import OpenAI
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import average_precision_score, f1_score
-from sklearn.model_selection import GroupKFold, GroupShuffleSplit, cross_val_predict
-from sklearn.multiclass import OneVsRestClassifier
 
 from lab.config import DATA_DIR
+from lab.metrics import per_label, score
+from lab.student import (
+    label_matrix,
+    make_student,
+    normalise,
+    select_student,
+    sets_from_scores,
+    topic_split,
+    tune,
+)
 from lab.taxonomy import CATEGORIES, SLUGS, slug_for_source_name
 
 DIR = DATA_DIR / "001"
 EMBEDDING_MODEL = "text-embedding-3-large"  # the model that produced the Qdrant vectors
-C_GRID = (0.5, 2.0, 8.0, 32.0)
-THRESHOLD_GRID = np.round(np.arange(0.05, 0.95, 0.05), 2)
 LEARNING_CURVE_SIZES = (250, 500, 1_000)
 SEED = 0
 
 K = len(SLUGS)
-INDEX = {slug: i for i, slug in enumerate(SLUGS)}
 
 
 # ---------------------------------------------------------------- data
@@ -58,56 +58,9 @@ def load() -> tuple[pd.DataFrame, np.ndarray]:
     df = df[df["id"].isin(by_id)].reset_index(drop=True)
     # pandas reads a JSON null as NaN; "no category" must stay None to compare equal to None.
     df["primary"] = df["primary"].astype(object).where(df["primary"].notna(), None)
-    X = np.stack([by_id[id] for id in df["id"]])
-    X = X / np.linalg.norm(X, axis=1, keepdims=True)
+    X = normalise(np.stack([by_id[id] for id in df["id"]]))
     print(f"{len(df)} labelled articles with vectors (sample {len(sample)})")
     return df, X
-
-
-def label_matrix(df: pd.DataFrame) -> np.ndarray:
-
-    Y = np.zeros((len(df), K), dtype=int)
-    for row, (primary, secondary) in enumerate(zip(df["primary"], df["secondary"])):
-        for slug in ([primary] if primary else []) + list(secondary):
-            Y[row, INDEX[slug]] = 1
-    return Y
-
-
-# ---------------------------------------------------------------- metrics
-
-
-def score(
-    df: pd.DataFrame, Y: np.ndarray, pred_primary: list[str | None], pred_Y: np.ndarray
-) -> dict:
-
-    truth = df["primary"].tolist()
-    labelled = [i for i, t in enumerate(truth) if t is not None]
-    return {
-        "n": len(df),
-        "primary_acc": float(np.mean([p == t for p, t in zip(pred_primary, truth)])),
-        "primary_in_set": float(
-            np.mean(
-                [
-                    pred_primary[i] is not None and Y[i, INDEX[pred_primary[i]]]
-                    for i in labelled
-                ]
-            )
-        ),
-        "micro_f1": float(f1_score(Y, pred_Y, average="micro", zero_division=0)),
-        "macro_f1": float(f1_score(Y, pred_Y, average="macro", zero_division=0)),
-    }
-
-
-def per_label(Y: np.ndarray, pred_Y: np.ndarray) -> pd.DataFrame:
-
-    rows = []
-    for slug, i in INDEX.items():
-        tp = int((Y[:, i] & pred_Y[:, i]).sum())
-        precision = tp / max(pred_Y[:, i].sum(), 1)
-        recall = tp / max(Y[:, i].sum(), 1)
-        f1 = 2 * precision * recall / max(precision + recall, 1e-9)
-        rows.append((slug, int(Y[:, i].sum()), precision, recall, f1))
-    return pd.DataFrame(rows, columns=["slug", "support", "precision", "recall", "f1"])
 
 
 # ---------------------------------------------------------------- candidates
@@ -116,11 +69,7 @@ def per_label(Y: np.ndarray, pred_Y: np.ndarray) -> pd.DataFrame:
 def predict_legacy(df: pd.DataFrame) -> tuple[list[str | None], np.ndarray]:
 
     primary = [slug_for_source_name(name) for name in df["source_category"]]
-    Y = np.zeros((len(df), K), dtype=int)
-    for row, slug in enumerate(primary):
-        if slug:
-            Y[row, INDEX[slug]] = 1
-    return primary, Y
+    return primary, label_matrix(primary, [[]] * len(primary), SLUGS)
 
 
 def label_vectors() -> np.ndarray:
@@ -131,57 +80,9 @@ def label_vectors() -> np.ndarray:
         return np.load(path)
     texts = [f"{c.name}: {c.definition}" for c in CATEGORIES]
     response = OpenAI().embeddings.create(model=EMBEDDING_MODEL, input=texts)
-    V = np.array([d.embedding for d in response.data], dtype=np.float32)
-    V = V / np.linalg.norm(V, axis=1, keepdims=True)
+    V = normalise(np.array([d.embedding for d in response.data], dtype=np.float32))
     np.save(path, V)
     return V
-
-
-def sets_from_scores(
-    scores: np.ndarray, thresholds: np.ndarray, none_below: float
-) -> tuple[list[str | None], np.ndarray]:
-    """Primary = best-scoring label unless it is below `none_below`; the set = every label over its
-    own threshold, plus the primary."""
-
-    best = scores.argmax(axis=1)
-    primary = [
-        SLUGS[b] if scores[row, b] >= none_below else None for row, b in enumerate(best)
-    ]
-    Y = (scores >= thresholds).astype(int)
-    for row, slug in enumerate(primary):
-        if slug is None:
-            Y[row] = 0
-        else:
-            Y[row, INDEX[slug]] = 1
-    return primary, Y
-
-
-def tune(scores: np.ndarray, Y: np.ndarray, truth: list[str | None], grid) -> tuple:
-    """Per-label thresholds maximising that label's F1, then the no-category cut-off maximising
-    primary accuracy — both on training (out-of-fold) scores, never on the test split.
-    """
-
-    thresholds = np.array(
-        [
-            max(
-                grid,
-                key=lambda t: f1_score(Y[:, i], scores[:, i] >= t, zero_division=0),
-            )
-            for i in range(K)
-        ]
-    )
-    best = scores.argmax(axis=1)
-
-    def accuracy(cut: float) -> float:
-        return np.mean(
-            [
-                (SLUGS[b] if scores[r, b] >= cut else None) == t
-                for r, (b, t) in enumerate(zip(best, truth))
-            ]
-        )
-
-    none_below = max([0.0, *grid], key=accuracy)  # 0.0 = always predict a category
-    return thresholds, float(none_below)
 
 
 def zero_shot(
@@ -191,52 +92,9 @@ def zero_shot(
     V = label_vectors()
     train_scores, test_scores = X_train @ V.T, X_test @ V.T
     grid = np.round(np.arange(0.0, 0.6, 0.01), 2)
-    thresholds, none_below = tune(train_scores, Y_train, truth_train, grid)
-    primary, pred = sets_from_scores(test_scores, thresholds, none_below)
+    thresholds, none_below = tune(train_scores, Y_train, truth_train, grid, SLUGS)
+    primary, pred = sets_from_scores(test_scores, thresholds, none_below, SLUGS)
     return primary, pred, {"none_below": none_below}
-
-
-def make_student(C: float) -> OneVsRestClassifier:
-
-    return OneVsRestClassifier(LogisticRegression(C=C, max_iter=3_000), n_jobs=-1)
-
-
-def student(
-    X_train, Y_train, truth_train, groups_train, X_test
-) -> tuple[list[str | None], np.ndarray, dict]:
-
-    cv = GroupKFold(n_splits=4)
-
-    def oof(C: float) -> np.ndarray:
-        return cross_val_predict(
-            make_student(C),
-            X_train,
-            Y_train,
-            groups=groups_train,
-            cv=cv,
-            method="predict_proba",
-        )
-
-    candidates = {C: oof(C) for C in C_GRID}
-    C, oof_scores = max(
-        candidates.items(),
-        key=lambda item: average_precision_score(Y_train, item[1], average="macro"),
-    )
-    thresholds, none_below = tune(oof_scores, Y_train, truth_train, THRESHOLD_GRID)
-    model = make_student(C).fit(X_train, Y_train)
-    primary, pred = sets_from_scores(
-        model.predict_proba(X_test), thresholds, none_below
-    )
-    return (
-        primary,
-        pred,
-        {
-            "C": C,
-            "none_below": none_below,
-            "thresholds": dict(zip(SLUGS, thresholds.tolist())),
-            "model": model,
-        },
-    )
 
 
 # ---------------------------------------------------------------- report
@@ -287,11 +145,10 @@ def teacher_report(df: pd.DataFrame) -> None:
 def main() -> None:
 
     df, X = load()
-    Y = label_matrix(df)
+    Y = label_matrix(df["primary"], df["secondary"], SLUGS)
     teacher_report(df)
 
-    splitter = GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=SEED)
-    train_idx, test_idx = next(splitter.split(X, groups=df["split_group"]))
+    train_idx, test_idx = topic_split(df["split_group"], seed=SEED)
     train, test = df.iloc[train_idx], df.iloc[test_idx].reset_index(drop=True)
     X_train, X_test, Y_train, Y_test = (
         X[train_idx],
@@ -306,21 +163,29 @@ def main() -> None:
         "legacy": predict_legacy(test),
         "zero_shot": zero_shot(X_train, Y_train, truth_train, X_test)[:2],
     }
-    student_primary, student_Y, student_info = student(
-        X_train, Y_train, truth_train, train["split_group"].to_numpy(), X_test
+    student_info = select_student(
+        X_train, Y_train, truth_train, train["split_group"].to_numpy(), SLUGS
+    )
+    student_primary, student_Y = sets_from_scores(
+        student_info["model"].predict_proba(X_test),
+        np.array(list(student_info["thresholds"].values())),
+        student_info["none_below"],
+        SLUGS,
     )
     predictions["student"] = (student_primary, student_Y)
 
     results = {}
     uniform_mask = (test["stratum"] == "uniform").to_numpy()
+    truth_test = test["primary"].tolist()
     print("\n## Candidates vs teacher (test split)")
     for name, (primary, pred) in predictions.items():
-        whole = score(test, Y_test, primary, pred)
+        whole = score(truth_test, Y_test, primary, pred, SLUGS)
         uni = score(
-            test[uniform_mask],
+            [t for t, m in zip(truth_test, uniform_mask) if m],
             Y_test[uniform_mask],
             [p for p, m in zip(primary, uniform_mask) if m],
             pred[uniform_mask],
+            SLUGS,
         )
         results[name] = {"test": whole, "test_uniform": uni}
         print(
@@ -330,7 +195,7 @@ def main() -> None:
         )
 
     print(f"\nstudent: C={student_info['C']}  none_below={student_info['none_below']}")
-    report = per_label(Y_test, student_Y)
+    report = per_label(Y_test, student_Y, SLUGS)
     print(report.round(3).to_string(index=False))
 
     print("\n## Learning curve (student, fixed C, default 0.5 thresholds)")
@@ -340,9 +205,12 @@ def main() -> None:
         idx = rng.choice(len(train), size=min(size, len(train)), replace=False)
         model = make_student(student_info["C"]).fit(X_train[idx], Y_train[idx])
         primary, pred = sets_from_scores(
-            model.predict_proba(X_test), np.full(K, 0.5), student_info["none_below"]
+            model.predict_proba(X_test),
+            np.full(K, 0.5),
+            student_info["none_below"],
+            SLUGS,
         )
-        curve[size] = score(test, Y_test, primary, pred)
+        curve[size] = score(truth_test, Y_test, primary, pred, SLUGS)
         print(
             f"  n={size:5d}  primary_acc {curve[size]['primary_acc']:.3f}"
             f"  micro_f1 {curve[size]['micro_f1']:.3f}  macro_f1 {curve[size]['macro_f1']:.3f}"

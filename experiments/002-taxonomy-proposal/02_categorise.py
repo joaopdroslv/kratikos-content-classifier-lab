@@ -14,21 +14,14 @@ import json
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 
 from lab.config import DATA_DIR
+from lab.student import label_matrix, make_student, normalise
 from lab.taxonomy import SLUGS
 
 DIR = DATA_DIR / "002"
 DIR_001 = DATA_DIR / "001"
-K = len(SLUGS)
-INDEX = {slug: i for i, slug in enumerate(SLUGS)}
-
-
-def _normalise(X: np.ndarray) -> np.ndarray:
-
-    return X / np.linalg.norm(X, axis=1, keepdims=True)
 
 
 def train_student() -> OneVsRestClassifier:
@@ -40,25 +33,18 @@ def train_student() -> OneVsRestClassifier:
     by_id = dict(zip(vectors["ids"], vectors["vectors"]))
     labels = labels[labels["id"].isin(by_id)].reset_index(drop=True)
 
-    X = _normalise(np.stack([by_id[id] for id in labels["id"]]))
-    Y = np.zeros((len(labels), K), dtype=int)
-    for row, (primary, secondary) in enumerate(
-        zip(labels["primary"], labels["secondary"])
-    ):
-        for slug in ([primary] if isinstance(primary, str) else []) + list(secondary):
-            Y[row, INDEX[slug]] = 1
+    X = normalise(np.stack([by_id[id] for id in labels["id"]]))
+    Y = label_matrix(labels["primary"], labels["secondary"], SLUGS)
 
     C = json.loads((DIR_001 / "results.json").read_text())["student"]["C"]
     print(f"student: {len(labels)} labelled articles, C={C}")
-    return OneVsRestClassifier(LogisticRegression(C=C, max_iter=3_000), n_jobs=-1).fit(
-        X, Y
-    )
+    return make_student(C).fit(X, Y)
 
 
 def main() -> None:
 
     topics = pd.read_parquet(DIR / "topics.parquet")
-    X = _normalise(np.load(DIR / "centroids.npy"))
+    X = normalise(np.load(DIR / "centroids.npy"))
     scores = train_student().predict_proba(X)
 
     best = scores.argmax(axis=1)
