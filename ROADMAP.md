@@ -20,7 +20,8 @@ the plan that ties them together: update it when an item closes or a decision is
 |---|---|---|
 | 001 | Baseline on the 12 current categories (teacher–student on the Qdrant vectors) | **done** |
 | 001 | Human review of the teacher (150 articles) | **done** |
-| 002 | Taxonomy proposal: master categories + subcategories | **done**, validation (step 7) pending OpenAI credit |
+| 002 | Taxonomy proposal: master categories + subcategories | **done**, validation run 2026-09-29; write-up and team review pending |
+| 003 | Teacher model: `gpt-6-luna` vs `gpt-4.1-mini` on the human review | **done**: keep `gpt-4.1-mini` |
 | — | Team decision on the taxonomy | **next** (input: [002 proposal](experiments/002-taxonomy-proposal/proposal.pt-BR.md)) |
 | — | Labelling and student on the new taxonomy | blocked on the decision |
 | — | Port to `kratikos-ai-backend` | later |
@@ -85,7 +86,7 @@ What carries over from 001:
 |---|---|
 | Sample (`sample.parquet`) and vectors (`vectors.npz`) | **Yes.** Same articles, no Qdrant cost, and a fair 12-vs-new comparison |
 | Pipeline (sample → vectors → label → evaluate → review) | **Yes.** Same method |
-| Teacher labels | **No.** Re-label on the new taxonomy (~3k `gpt-4.1-mini` calls) |
+| Teacher labels | **No.** Re-label on the new taxonomy (~3k `gpt-4.1-mini` calls; 003 found `gpt-6-luna` 6 points worse against the human review, for a few dollars saved) |
 | Human review | **Partly.** Valid where a category did not change; anything on a new boundary (e.g. `Política` vs `Geopolítica`) is reviewed again |
 | Per-category numbers and learning curve | **No.** Specific to the 12 |
 

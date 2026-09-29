@@ -201,18 +201,22 @@ def summarise(records: list[dict], sample: pd.DataFrame, index: dict[str, dict])
     return "\n".join(out)
 
 
+def build_schema():
+
+    return create_model(
+        "Classification",
+        primary=(Literal[SLUGS] | None, ...),
+        secondary=(list[Literal[SLUGS]], ...),
+        subcategories=(list[Literal[tuple(SUBCATEGORIES)]], ...),
+        missing_subcategory=(str | None, ...),
+    )
+
+
 async def main(limit: int | None) -> None:
 
     index = load_taxonomy()
     system = build_prompt()
-    options = tuple(index)
-    schema = create_model(
-        "Classification",
-        primary=(Literal[SLUGS] | None, ...),
-        secondary=(list[Literal[SLUGS]], ...),
-        subcategories=(list[Literal[options]], ...),
-        missing_subcategory=(str | None, ...),
-    )
+    schema = build_schema()
     sample = draw_sample()
     if limit:
         sample = sample.head(limit)
