@@ -22,8 +22,8 @@ the plan that ties them together: update it when an item closes or a decision is
 | 001 | Human review of the teacher (150 articles) | **done** |
 | 002 | Taxonomy proposal: master categories + subcategories | **done**; 2.1 validated by the team (2026-09-30) |
 | 003 | Teacher model: `gpt-6-luna`, `gpt-5.4-mini` vs `gpt-4.1-mini` on the human review | **done**: keep `gpt-4.1-mini` |
-| — | Team decision on the taxonomy | **next** (input: [002 proposal](experiments/002-taxonomy-proposal/proposal.pt-BR.md)) |
-| — | Labelling and student on the new taxonomy | blocked on the decision |
+| 004 | Taxonomy coverage: recurring subjects 2.1 misses, over the whole corpus | **done**: one added (crypto) → **2.2** |
+| — | Labelling and student on the new taxonomy | **next**: choose the v2 teacher, then label |
 | — | Port to `kratikos-ai-backend` | later |
 | — | Posts | on hold, see [Out of scope](#out-of-scope-for-now) |
 
@@ -47,6 +47,15 @@ the plan that ties them together: update it when an item closes or a decision is
   by hand into [`src/lab/taxonomy_v2.py`](src/lab/taxonomy_v2.py): **16 masters, 116
   subcategories**, multi-label, in a primary facet (sports by modality, politics by subject) and
   an optional cross-cutting facet. No geography: location is a separate filter.
+
+**004 — taxonomy coverage** ([README](experiments/004-taxonomy-coverage/README.md))
+
+- All 85.6k dev articles in 400 clusters, each judged against 2.1 by `gpt-4.1`. The 48 "new
+  subcategory" verdicts were almost all too specific (one competition inside a modality), tied
+  to a place or entity, or a story format (obituaries, rankings, promotions). Only
+  cryptocurrencies passed the product test ("would a reader follow it?"): taxonomy **2.2**.
+- Distance to the subcategory definitions does not detect uncovered articles (AUC ≤ 0.69), so
+  the student's rejection threshold has to be measured, not assumed.
 
 ## Next
 
