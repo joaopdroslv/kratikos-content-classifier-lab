@@ -34,7 +34,10 @@ REMAP = {
     "housing.social_housing": "housing.housing_access",
     "housing.homelessness": "housing.housing_access",
 }
-NO_SHARE = {"culture.religion": "nova na 2.1, sem dado de validação"}
+NO_SHARE = {
+    "culture.religion": "nova na 2.1, sem dado de validação",
+    "economy.cryptocurrencies": "nova na 2.2 (experimento 004), sem dado de validação",
+}
 NOTES = {
     "housing.housing_access": "inclui aluguel como mercado, que na 2.1 vai para Mercado imobiliário"
 }

@@ -20,7 +20,7 @@ the plan that ties them together: update it when an item closes or a decision is
 |---|---|---|
 | 001 | Baseline on the 12 current categories (teacher–student on the Qdrant vectors) | **done** |
 | 001 | Human review of the teacher (150 articles) | **done** |
-| 002 | Taxonomy proposal: master categories + subcategories | **done**, validation run 2026-09-29; write-up and team review pending |
+| 002 | Taxonomy proposal: master categories + subcategories | **done**; 2.1 validated by the team (2026-09-30) |
 | 003 | Teacher model: `gpt-6-luna`, `gpt-5.4-mini` vs `gpt-4.1-mini` on the human review | **done**: keep `gpt-4.1-mini` |
 | — | Team decision on the taxonomy | **next** (input: [002 proposal](experiments/002-taxonomy-proposal/proposal.pt-BR.md)) |
 | — | Labelling and student on the new taxonomy | blocked on the decision |

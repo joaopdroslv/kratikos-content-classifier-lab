@@ -29,13 +29,17 @@ Boundaries between masters that the subcategories rely on:
 (racial/ethnic/religious, LGBTQIA+ and women's rights merged into `discrimination_equality`);
 `religion` added to culture; rent, social housing and homelessness merged into `housing_access`;
 `weather` renamed so "clima" means only climate; the health system named without SUS.
+
+2.2 (2026-09-30, after 004's coverage sweep): `economy.cryptocurrencies` added; readers follow it
+as a subject, and it was diluted in `financial_markets`. Named "Criptomoedas" only: "ativos
+digitais" would also read as stocks and funds traded online.
 """
 
 from dataclasses import dataclass
 
 # Bump on ANY change to a master or subcategory (name, definition, added, removed): LLM answers
 # record it, and answers given under another version are not comparable.
-TAXONOMY_VERSION = "2.1"
+TAXONOMY_VERSION = "2.2"
 
 
 @dataclass(frozen=True)
@@ -208,7 +212,15 @@ CATEGORIES: tuple[Master, ...] = (
                 S(
                     "financial_markets",
                     "Mercado financeiro e investimentos",
-                    "Stock exchanges, currencies, investments, banks and financial results.",
+                    "Stock exchanges, currencies, investments, banks and financial results. "
+                    "Cryptocurrencies belong to cryptocurrencies.",
+                ),
+                S(
+                    "cryptocurrencies",
+                    "Criptomoedas",
+                    "Bitcoin and other cryptocurrencies and stablecoins: prices, investment, "
+                    "crypto exchanges and their regulation. Stocks, funds and other securities, "
+                    "even when traded online, belong to financial_markets.",
                 ),
                 S(
                     "companies_business",

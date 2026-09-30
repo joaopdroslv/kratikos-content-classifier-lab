@@ -182,3 +182,7 @@ shares may differ in production; `Críquete` in particular may not earn its plac
 `Loterias`, `Estilo de Vida`) and a faceted, multi-label, geography-free subcategory layer.
 On unseen articles the curated subcategories hold (step 7); 2.1 awaits the team's review
 (step 8's sheet).
+
+**Update (2026-09-30):** the team validated 2.1. Experiment 004 then swept the whole corpus for
+missing subcategories and added one, `economy.cryptocurrencies`: taxonomy **2.2, 114
+subcategories**.
