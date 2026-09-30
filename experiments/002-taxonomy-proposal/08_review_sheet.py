@@ -4,7 +4,7 @@ Columns: master, subcategory, facet, definition (what the model reads), share in
 and two columns for the reviewer to fill (`Aprovada?`, `Comentário`).
 
 The share comes from step 7's answers, which were given under taxonomy 2.0. The 2.1 edits were
-merges and renames, so 2.0 answers are carried over through `REMAP` instead of paying for a new
+merges and renames, so 2.0 answers are carried over through `REMAP_2_0` instead of paying for a new
 run: a merged subcategory gets the union of its parts. Two approximations follow, both flagged in
 the sheet: `religion` is new and has no share, and `housing_access` counts every 2.0 `rent`
 article, although rents as a market now belong to `real_estate`.
@@ -18,22 +18,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from lab import llm
+from lab import classify_v2
 from lab.config import DATA_DIR
-from lab.taxonomy_v2 import CATEGORIES, SUBCATEGORIES, TAXONOMY_VERSION
+from lab.taxonomy_v2 import CATEGORIES, REMAP_2_0, SUBCATEGORIES, TAXONOMY_VERSION
 
 DIR = DATA_DIR / "002"
 VALIDATION = DIR / "validation_7cb234171d.jsonl"  # step 7, taxonomy 2.0
 OUT = DIR / "taxonomia_v2_validacao.xlsx"
-# 2.0 subcategory -> 2.1; a 2.0 key missing here is unchanged
-REMAP = {
-    "human_rights.racial_ethnic_religious": "human_rights.discrimination_equality",
-    "human_rights.lgbtq": "human_rights.discrimination_equality",
-    "human_rights.gender_women": "human_rights.discrimination_equality",
-    "housing.rent": "housing.housing_access",
-    "housing.social_housing": "housing.housing_access",
-    "housing.homelessness": "housing.housing_access",
-}
 NO_SHARE = {
     "culture.religion": "nova na 2.1, sem dado de validação",
     "economy.cryptocurrencies": "nova na 2.2 (experimento 004), sem dado de validação",
@@ -64,11 +55,11 @@ WIDTHS = (18, 34, 12, 70, 12, 30, 12, 40)
 def shares() -> dict[str, float]:
     """Per 2.1 subcategory: the share of the articles of its master (as primary) that have it."""
 
-    records = llm.read_jsonl(VALIDATION)
+    records = classify_v2.read(VALIDATION)
     per_master = Counter(r["primary"] for r in records)
     per_sub = Counter()
     for r in records:
-        subs = {REMAP.get(s, s) for s in r["subcategories"]}
+        subs = {REMAP_2_0.get(s, s) for s in r["subcategories"]}
         per_sub.update(s for s in subs if s.startswith(f"{r['primary']}."))
     missing = set(per_sub) - set(SUBCATEGORIES)
     if missing:
@@ -181,7 +172,7 @@ def main() -> None:
 
     wb = Workbook()
     taxonomy_sheet(wb.active, shares())
-    instructions_sheet(wb.create_sheet(), len(llm.read_jsonl(VALIDATION)))
+    instructions_sheet(wb.create_sheet(), len(classify_v2.read(VALIDATION)))
     wb.save(OUT)
     print(
         f"wrote {OUT} (taxonomy {TAXONOMY_VERSION}, {len(SUBCATEGORIES)} subcategories)"

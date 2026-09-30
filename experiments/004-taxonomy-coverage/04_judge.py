@@ -20,7 +20,6 @@ whenever the taxonomy or the prompt changes), `gaps.md`.
 
 import argparse
 import asyncio
-import hashlib
 import os
 from collections import Counter
 from typing import Literal
@@ -28,9 +27,10 @@ from typing import Literal
 import pandas as pd
 from pydantic import create_model
 
-from lab import llm, pricing
+from lab import classify_v2, llm, pricing
+from lab.classify_v2 import render_taxonomy
 from lab.config import DATA_DIR
-from lab.taxonomy_v2 import CATEGORIES, SLUGS, SUBCATEGORIES, TAXONOMY_VERSION
+from lab.taxonomy_v2 import SLUGS, SUBCATEGORIES, TAXONOMY_VERSION
 
 DIR = DATA_DIR / "004"
 VALIDATION = DATA_DIR / "002" / "validation_7cb234171d.jsonl"  # 002 step 7
@@ -41,20 +41,6 @@ VERDICTS = ("existing", "new_subcategory", "new_master", "noise")
 RULES = """Rules of this taxonomy: no geography and no named entities (people, clubs, parties,
 countries, events) in a subcategory, since the reader's location is a separate filter; a
 subcategory is a recurring subject, never a single story."""
-
-
-def render_taxonomy() -> str:
-
-    lines = []
-    for master in CATEGORIES:
-        lines.append(f"\n## {master.slug} ({master.name}): {master.definition}")
-        for kind, facet in master.facets:
-            lines.append(f"  {kind} facet ({facet.axis}):")
-            lines.extend(
-                f"  - {master.slug}.{sub.slug} ({sub.name}): {sub.definition}"
-                for sub in facet.subcategories
-            )
-    return "\n".join(lines)
 
 
 def cluster_prompt() -> str:
@@ -152,7 +138,7 @@ def missing_item() -> tuple[str, str]:
 
     names = Counter(
         (r["primary"], r["missing_subcategory"].strip().lower())
-        for r in llm.read_jsonl(VALIDATION)
+        for r in classify_v2.read(VALIDATION)
         if r.get("missing_subcategory")
     )
     return (
@@ -236,8 +222,7 @@ async def main(limit: int | None) -> None:
         ("judge", cluster_prompt(), cluster_schema(), items),
         ("missing", missing_prompt(), missing_schema(), [missing_item()]),
     ):
-        digest = hashlib.sha256(system.encode()).hexdigest()[:10]
-        out = DIR / f"{kind}_{digest}.jsonl"
+        out = llm.output_path(DIR, kind, system)
         await llm.run(
             todo,
             out=out,

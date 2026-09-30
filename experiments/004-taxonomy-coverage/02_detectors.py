@@ -15,7 +15,7 @@ Also reported: how often the nearest prototypes agree with the teacher, i.e. whe
 good enough to label clusters with in step 3.
 
 The validation answers were given under taxonomy 2.0 and the prototypes are 2.1; the 2.1 edits
-were merges and renames (`REMAP`, as in 002's step 8), plus the new `culture.religion`.
+were merges and renames (`lab.taxonomy_v2.REMAP_2_0`), plus the new `culture.religion`.
 
 Output: `data/004/detectors.md`.
 
@@ -26,8 +26,10 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from lab import llm
+from lab import classify_v2
 from lab.config import DATA_DIR
+from lab.student import normalise
+from lab.taxonomy_v2 import REMAP_2_0
 
 DIR = DATA_DIR / "004"
 VALIDATION = (
@@ -35,20 +37,6 @@ VALIDATION = (
 )  # 002 step 7, taxonomy 2.0
 CENTROIDS = DATA_DIR / "002" / "centroids.npy"
 TOP_K = 3
-# 2.0 subcategory -> 2.1, copied from 002's 08_review_sheet.py
-REMAP = {
-    "human_rights.racial_ethnic_religious": "human_rights.discrimination_equality",
-    "human_rights.lgbtq": "human_rights.discrimination_equality",
-    "human_rights.gender_women": "human_rights.discrimination_equality",
-    "housing.rent": "housing.housing_access",
-    "housing.social_housing": "housing.housing_access",
-    "housing.homelessness": "housing.housing_access",
-}
-
-
-def normalise(X: np.ndarray) -> np.ndarray:
-
-    return X / np.linalg.norm(X, axis=1, keepdims=True)
 
 
 def load_prototypes(kind: str) -> tuple[list[str], np.ndarray]:
@@ -61,12 +49,12 @@ def load_prototypes(kind: str) -> tuple[list[str], np.ndarray]:
 def load_validation() -> tuple[pd.DataFrame, np.ndarray]:
 
     saved = np.load(DIR / "validation_vectors.npz")
-    answers = pd.DataFrame(llm.read_jsonl(VALIDATION))
+    answers = pd.DataFrame(classify_v2.read(VALIDATION))
     df = pd.DataFrame({"id": saved["ids"], "row": range(len(saved["ids"]))}).merge(
         answers, on="id"
     )
     df["subcategories"] = df["subcategories"].map(
-        lambda subs: {REMAP.get(s, s) for s in subs}
+        lambda subs: {REMAP_2_0.get(s, s) for s in subs}
     )
     has_own_sub = df.apply(
         lambda r: any(s.startswith(f"{r['primary']}.") for s in r["subcategories"]),

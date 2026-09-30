@@ -862,6 +862,17 @@ CATEGORIES: tuple[Master, ...] = (
     ),
 )
 
+# Subcategory keys of 2.0 that 2.1 merged or renamed -> their key now; any other 2.0 key is
+# unchanged. Reads answers given under 2.0 (002's validation) in today's keys.
+REMAP_2_0 = {
+    "human_rights.racial_ethnic_religious": "human_rights.discrimination_equality",
+    "human_rights.lgbtq": "human_rights.discrimination_equality",
+    "human_rights.gender_women": "human_rights.discrimination_equality",
+    "housing.rent": "housing.housing_access",
+    "housing.social_housing": "housing.housing_access",
+    "housing.homelessness": "housing.housing_access",
+}
+
 SLUGS: tuple[str, ...] = tuple(master.slug for master in CATEGORIES)
 BY_SLUG: dict[str, Master] = {master.slug: master for master in CATEGORIES}
 # `master.subcategory` -> (master, facet kind, subcategory)

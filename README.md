@@ -91,3 +91,29 @@ deliberately small: these are experiments, not a pipeline.
   `sampled_at` from the file's modification time (each sample is written once), known
   `prompt_version`s, `taxonomy_version: 1.0` on the 001 labels (`taxonomy.py` is unchanged since
   the 001 run, commit `f79b9ef`), and `created_at: null` on earlier LLM answers.
+
+## Shared code and formats
+
+`src/lab` holds what several experiments must do **the same way**; everything else stays in the
+experiment's folder.
+
+- **Formats read across experiments have one definition in `src/lab`.** Labels on taxonomy v2
+  (validation, teacher comparison, training set) are written and read only through
+  `lab.classify_v2`: one prompt, one schema, one JSONL format (see its docstring). A new labelling
+  experiment uses it as is; a change to it is a new `prompt_version` and a new output file.
+- **Code moves to `src/lab` when it is identical in two experiments and a next one needs it**
+  (`lab.vectors`, `lab.llm.output_path`). A helper that needs a branch per consumer stays
+  duplicated: clustering, sampling SQL and review sheets differ on purpose from one experiment to
+  the next.
+- **Formats local to one experiment** (clusters, intermediate reports) follow no standard beyond
+  the metadata above.
+
+| Module | What |
+|---|---|
+| `config` | read-only Postgres and Qdrant connections, paths |
+| `llm` | resumable structured-output calls, JSONL output named by prompt hash |
+| `vectors` | article vectors from Qdrant by id |
+| `taxonomy`, `taxonomy_v2` | the label definitions (v1 frozen; v2 with `REMAP_2_0` for 2.0 answers) |
+| `classify_v2` | the teacher's prompt, schema and answer format on taxonomy v2 |
+| `student`, `metrics` | the student (logistic regression on the vectors) and its scores |
+| `metadata`, `pricing` | timestamps; list prices to turn recorded `usage` into dollars |

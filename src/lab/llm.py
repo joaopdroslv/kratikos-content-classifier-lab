@@ -10,6 +10,7 @@ accept the default: those answers are not deterministic, and carry `reasoning_ef
 """
 
 import asyncio
+import hashlib
 import json
 from collections.abc import Iterable
 from pathlib import Path
@@ -29,6 +30,15 @@ def done_ids(path: Path) -> set[str]:
         return set()
     with path.open(encoding="utf-8") as f:
         return {r["id"] for r in map(json.loads, f) if "error" not in r}
+
+
+def output_path(directory: Path, prefix: str, system: str) -> Path:
+    """`<prefix>_<hash of the system prompt>.jsonl`: answers to another prompt (a changed
+    taxonomy, a reworded rule) never mix into the same file."""
+
+    return (
+        directory / f"{prefix}_{hashlib.sha256(system.encode()).hexdigest()[:10]}.jsonl"
+    )
 
 
 def read_jsonl(path: Path) -> list[dict]:

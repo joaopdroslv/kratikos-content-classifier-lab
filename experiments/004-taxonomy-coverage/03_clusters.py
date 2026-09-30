@@ -24,6 +24,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 from lab.config import DATA_DIR
+from lab.student import normalise
 
 DIR = DATA_DIR / "004"
 DIR_002 = DATA_DIR / "002"
@@ -31,11 +32,6 @@ K = 400
 PCA_DIMS = 256
 EXAMPLES = 15
 SEED = 0
-
-
-def normalise(X: np.ndarray) -> np.ndarray:
-
-    return X / np.linalg.norm(X, axis=1, keepdims=True)
 
 
 def nearest_subcategory(X: np.ndarray) -> list[str]:

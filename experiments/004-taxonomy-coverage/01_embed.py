@@ -6,7 +6,7 @@ A master without subcategories (`lotteries`) stands in as its own subcategory. E
 gets a prototype of its own definition (`kind` = "master").
 
 The 1,390 articles of 002's validation (step 7) test the gap scores in step 2: the teacher said,
-for each one, whether a subcategory fits. Their vectors come from Qdrant `news_articles`.
+for each one, whether a subcategory fits. Their vectors come from Qdrant (`lab.vectors`).
 
 Output (`data/004/`): `prototypes.parquet`, `validation_vectors.npz`.
 
@@ -17,15 +17,13 @@ import numpy as np
 import pandas as pd
 from openai import OpenAI
 
-from lab import metadata
-from lab.config import DATA_DIR, get_qdrant
+from lab import metadata, vectors
+from lab.config import DATA_DIR
 from lab.taxonomy_v2 import CATEGORIES, TAXONOMY_VERSION
 
 DIR = DATA_DIR / "004"
 VALIDATION_SAMPLE = DATA_DIR / "002" / "validation_sample.parquet"
 MODEL = "text-embedding-3-large"
-COLLECTION = "news_articles"
-BATCH = 256
 
 
 def prototype_texts() -> list[tuple[str, str, str]]:
@@ -74,21 +72,11 @@ def embed_prototypes() -> None:
 def fetch_validation_vectors() -> None:
 
     ids = pd.read_parquet(VALIDATION_SAMPLE)["id"].tolist()
-    qdrant = get_qdrant()
-    found: dict[str, list[float]] = {}
-    for start in range(0, len(ids), BATCH):
-        points = qdrant.retrieve(
-            COLLECTION,
-            ids=ids[start : start + BATCH],
-            with_vectors=True,
-            with_payload=False,
-        )
-        found.update((str(p.id), p.vector) for p in points)
-    kept = [id for id in ids if id in found]
+    kept, X = vectors.fetch(ids)
     np.savez_compressed(
         DIR / "validation_vectors.npz",
         ids=np.array(kept),
-        vectors=np.array([found[id] for id in kept], dtype=np.float32),
+        vectors=X,
         sampled_at=np.array(metadata.now()),
     )
     print(f"fetched {len(kept)} validation vectors; {len(ids) - len(kept)} missing")

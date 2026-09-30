@@ -15,5 +15,8 @@ rules live there.
   Bump `prompt_version` on any prompt or schema change, and start a fresh output file.
 - Each experiment README says which steps are deterministic, which are resumable, and which read
   the live database.
+- **Shared code** ([README](README.md#shared-code-and-formats)): formats read across experiments
+  live in `src/lab` (v2 labels only through `lab.classify_v2`); other code moves there only when
+  identical in two experiments with a next consumer, never with a branch per consumer.
 - Code and docs in English; category/subcategory display names in pt-BR.
 - Format with isort then black.

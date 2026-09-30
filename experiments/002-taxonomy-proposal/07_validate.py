@@ -3,6 +3,7 @@
 A fresh uniform sample (the unbiased view of the corpus) plus a few articles per small master is
 classified by the teacher with the WHOLE curated v2 taxonomy (`lab.taxonomy_v2`): a primary master, up to two secondary ones,
 and 1 to 3 subcategories from any facet of those masters, with "none fits" allowed at every level.
+Prompt, schema and answer format are `lab.classify_v2`, which was extracted from this step.
 This measures, per master:
 - coverage: articles that get a primary-facet subcategory of their primary master;
 - the share of every subcategory (tiny ones are candidates to merge or drop);
@@ -18,19 +19,16 @@ file whenever the taxonomy changes, so answers to an old one never mix in), `val
 
 import argparse
 import asyncio
-import hashlib
 import os
 from collections import Counter
 from itertools import combinations
-from typing import Literal
 
 import pandas as pd
-from pydantic import create_model
 from sqlalchemy import text
 
-from lab import llm, metadata
+from lab import classify_v2, llm, metadata
 from lab.config import DATA_DIR, get_engine
-from lab.taxonomy_v2 import CATEGORIES, SLUGS, SUBCATEGORIES, TAXONOMY_VERSION
+from lab.taxonomy_v2 import SLUGS, SUBCATEGORIES
 
 DIR = DATA_DIR / "002"
 MODEL = os.getenv("VALIDATE_MODEL", "gpt-4.1")
@@ -39,7 +37,6 @@ PER_SMALL_MASTER = 40
 SMALL_V1 = ("housing", "education", "transport", "human_rights", "culture")
 CONTENT_CHARS = 1_500
 SEED = 0.17
-PROMPT_VERSION = "002-validate-v1"
 
 
 def load_taxonomy() -> dict[str, dict]:
@@ -62,8 +59,11 @@ def draw_sample() -> pd.DataFrame:
     topics = pd.read_parquet(DIR / "topics_categorised.parquet")
     select = f"""
         SELECT
-            na.id::text AS id, na.title, na.description,
-            LEFT(na.content, {CONTENT_CHARS}) AS content, na.category AS source_category
+            na.id::text AS id,
+            na.title,
+            na.description,
+            LEFT(na.content, {CONTENT_CHARS}) AS content,
+            na.category AS source_category
         FROM public.news_articles AS na
         JOIN ai.ingested_news_articles AS ina ON TRUE
             AND ina.content_id = na.id
@@ -104,35 +104,6 @@ def draw_sample() -> pd.DataFrame:
     sample["sampled_at"] = metadata.now()
     sample.to_parquet(path, index=False)
     return sample
-
-
-def build_prompt() -> str:
-
-    lines = []
-    for master in CATEGORIES:
-        lines.append(f"\n## {master.slug} ({master.name}): {master.definition}")
-        for kind, facet in master.facets:
-            lines.append(f"  {kind} facet ({facet.axis}):")
-            lines.extend(
-                f"  - {master.slug}.{sub.slug} ({sub.name}): {sub.definition}"
-                for sub in facet.subcategories
-            )
-    return f"""You classify news articles for a Brazilian civic-debate app.
-
-Taxonomy: master categories, each with subcategories in facets. A primary facet splits the master
-along one axis; a cross-cutting facet holds aspects an article may or may not have.
-{chr(10).join(lines)}
-
-Return:
-- `primary`: the master the article is mainly about; null if none fits.
-- `secondary`: 0 to 2 other masters the article substantially covers (a passing mention is not
-  enough). Never repeat the primary.
-- `subcategories`: 1 to 3 subcategories, only of the primary and secondary masters: normally one
-  from the primary master's primary facet, plus a cross-cutting one when the article is
-  substantially about that aspect. Empty when the primary is null or when none fits.
-- `missing_subcategory`: when the article belongs to its primary master but no subcategory of it
-  fits, a short Brazilian Portuguese name for the one that would; otherwise null.
-Judge by the content, not by the outlet. Articles may be in any language."""
 
 
 def summarise(records: list[dict], sample: pd.DataFrame, index: dict[str, dict]) -> str:
@@ -201,41 +172,24 @@ def summarise(records: list[dict], sample: pd.DataFrame, index: dict[str, dict])
     return "\n".join(out)
 
 
-def build_schema():
-
-    return create_model(
-        "Classification",
-        primary=(Literal[SLUGS] | None, ...),
-        secondary=(list[Literal[SLUGS]], ...),
-        subcategories=(list[Literal[tuple(SUBCATEGORIES)]], ...),
-        missing_subcategory=(str | None, ...),
-    )
-
-
 async def main(limit: int | None) -> None:
 
     index = load_taxonomy()
-    system = build_prompt()
-    schema = build_schema()
     sample = draw_sample()
     if limit:
         sample = sample.head(limit)
-    digest = hashlib.sha256(system.encode()).hexdigest()[:10]
-    out = DIR / f"validation_{digest}.jsonl"
+    out = classify_v2.output_path(DIR, "validation")
     await llm.run(
         [(r["id"], llm.render_article(r)) for r in sample.to_dict("records")],
         out=out,
-        system=system,
-        schema=schema,
+        system=classify_v2.SYSTEM_PROMPT,
+        schema=classify_v2.Classification,
         model=MODEL,
-        extra={"prompt_version": PROMPT_VERSION, "taxonomy_version": TAXONOMY_VERSION},
+        extra=classify_v2.METADATA,
         desc="validate",
     )
-    records = [
-        {**r, "secondary": [s for s in r["secondary"] if s != r["primary"]][:2]}
-        for r in llm.read_jsonl(out)
-        if r["id"] in set(sample["id"])
-    ]
+    ids = set(sample["id"])
+    records = [r for r in classify_v2.read(out) if r["id"] in ids]
     report = summarise(records, sample, index)
     (DIR / "validation.md").write_text(report, encoding="utf-8")
     print(report)
