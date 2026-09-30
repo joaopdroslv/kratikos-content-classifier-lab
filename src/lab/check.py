@@ -12,7 +12,9 @@ def main() -> None:
 
     with get_engine().connect() as conn:
         read_only = conn.execute(text("SHOW transaction_read_only")).scalar_one()
-        news = conn.execute(text("SELECT count(*) FROM public.news_articles")).scalar_one()
+        news = conn.execute(
+            text("SELECT count(*) FROM public.news_articles")
+        ).scalar_one()
         posts = conn.execute(text("SELECT count(*) FROM public.posts")).scalar_one()
     print(f"postgres  read_only={read_only}  news_articles={news}  posts={posts}")
 
