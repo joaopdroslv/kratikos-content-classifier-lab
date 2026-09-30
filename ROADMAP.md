@@ -77,6 +77,9 @@ Experiment numbers for 005 and 006 are provisional.
 | 2026-09-30 | **The "não classificado" pool feeds the next revision**: labelled by the teacher, it splits into student errors (new training rows) and new subjects (candidates for the next taxonomy) | Keeps the taxonomy and the training set current without re-sampling at random |
 | 2026-09-30 | **A larger training set than 001's**, sampled per subcategory, at a higher labelling cost | 114 subcategories on ~4k articles leaves the tail with 5–10 examples; 001's curve was still rising |
 | 2026-09-30 | **Product test for a subcategory: would a reader follow it as an interest?** | 004: most corpus-driven candidates are formats, events or places, not interests |
+| 2026-09-30 | **The student stays one-vs-rest**; softmax (multinomial) is not tested | Labels are multi-label, so softmax could only replace the primary, in a hybrid head; linear heads on one embedding differ by 1–2 points; independent scores are what the rejection threshold needs |
+| 2026-09-30 | **Code shared across experiments lives in `src/lab`**; formats read across experiments have one definition (`lab.classify_v2` for v2 labels) | One format to read instead of one per experiment; see README § Shared code and formats |
+| 2026-09-30 | **The model ships as one calibrated file** (weights + manifest + test cases, no pickle), read by a `ContentClassifier` in the backend | The backend downloads and uses it without tuning anything; details in [§4](#4-port-to-kratikos-ai-backend) |
 
 ## Next
 
@@ -86,10 +89,16 @@ Experiment numbers for 005 and 006 are provisional.
 optional fields, and in 002 `gpt-4.1-mini` overfilled an optional field (the aspect tag on 39 of 40
 trial articles). Before labelling thousands of articles:
 
-- Run `gpt-4.1-mini` on 002's 1,390 validation articles with the 2.2 prompt and compare with
-  `gpt-4.1` (re-run on 2.2, or on 2.1's answers where 2.2 did not change): primary agreement,
-  subcategory agreement, labels per article, and where they disagree. ~US$1.5–4.
-- Output: which teacher labels the training set, and its cost per 1k articles.
+- Run **both** `gpt-4.1` and `gpt-4.1-mini` on 002's 1,390 validation articles with the 2.2
+  prompt, through `lab.classify_v2`. The 2.0 answers of 002 are not reused: both models must see
+  the same prompt. ~US$8–15 (`gpt-4.1`) + ~US$2–3 (mini).
+- Report: primary and subcategory agreement, labels per article, overfilled optional fields, cost.
+- **Agreement is not accuracy.** ~80–100 disagreements go to the team in a **blind** sheet (which
+  model said what is hidden; 003's reviewer anchored on the answer shown). They decide which
+  model the human sides with, and they are the first rows of the v2 golden set.
+- Output: which teacher labels the training set, and its cost per 1k articles. The teacher labels
+  the **training set only**; the golden set is human.
+- Blocked on API credits (2026-09-30).
 
 ### 2. Labelling set and student on 2.2
 
@@ -114,6 +123,8 @@ answered its own question, and editing it would erase the record of what was mea
   how much of it the student rejects, at what cost to the known classes. This is the number the
   "não classificado" state rests on.
 - Teacher prompt: stricter secondaries (the 001 review's main finding).
+- **Ends with the artifact** in [§4](#4-port-to-kratikos-ai-backend)'s format, its thresholds
+  tuned here, and the reference decoding in `src/lab`.
 
 The question: **with 16 masters and 114 subcategories, does the student still track the
 teacher?** Finer boundaries (`Política` vs `Geopolítica`) may cost accuracy.
@@ -126,8 +137,62 @@ inheritance (below).
 
 ### 4. Port to `kratikos-ai-backend`
 
-Model artifact, thresholds and definitions as an ingestion phase; backfill of existing articles.
-Once live, the "não classificado" pool is monitored on production data: dev leans on UK and
+The lab delivers a model the backend **downloads and uses as is**, already calibrated; the
+backend tunes nothing. The ingestion phase classifies each article from the embedding it already
+computes (no extra API call), and existing articles are backfilled.
+
+**What the model is.** One-vs-rest logistic regression: a weight matrix `W` (labels × 3072) and a
+bias `b`. Inference is `sigmoid(W @ x + b)`: one score per label, in a fixed order. The model
+itself declares no input or output format:
+
+- **Input** is fixed by the shape of `W`: one `text-embedding-3-large` vector of 3072 floats.
+  Changing the backend's embedding model or dimension means retraining.
+- **Output** is 130 unnamed scores. The structure comes from the manifest (which position is
+  which label, and where to cut) and from a decoding function (the rules of
+  `lab.student.sets_from_scores`).
+
+**The artifact: one file**, `classifier-<model_version>.npz` (~1.6 MB), holding:
+
+| Part | Content |
+|---|---|
+| `W`, `b` | the weights, as plain arrays: **no pickle/joblib** (loading a pickle runs code, and ties the backend to the lab's scikit-learn version) |
+| manifest (JSON text) | `model_version`, `taxonomy_version`, `created_at`; input (`embedding_model`, `dim`); `labels` in column order, each with `key`, pt-BR `name`, `kind` (master / subcategory) and its tuned `threshold`; `none_below` (the "não classificado" cut-off) |
+| test cases | ~20 input vectors with their expected output: the backend checks them on load or in a test, so its decoding can never drift from the lab's |
+
+One file, one download, one checksum: a separate manifest could be fetched at the wrong version.
+Thresholds and `none_below` come tuned by §2 on the golden set. Changing any of them needs no
+retraining, but it changes the output, so it is a new `model_version`.
+
+**Output format** (what the backend stores per article):
+
+```json
+{"primary": "economy", "secondary": [], "subcategories": ["economy.cryptocurrencies"],
+ "model_version": "2.2-001", "taxonomy_version": "2.2"}
+```
+
+`primary: null` is "não classificado". The two versions let articles labelled by an old model be
+found and re-classified.
+
+**The interface** lives in the backend (it runs in production), like its OpenAI client wrapper:
+~50 lines, numpy + pydantic, no scikit-learn.
+
+```python
+class ContentClassifier:
+    @classmethod
+    def load(cls, path: Path) -> "ContentClassifier": ...  # checks dim, runs the test cases
+    def classify(self, embedding: Sequence[float]) -> Classification: ...  # validates 3072 floats
+```
+
+The lab keeps the **reference implementation** in `src/lab` (the same decoding that scores the
+student in §2) and the code that writes the artifact; the embedded test cases keep the two
+equal. A shared package across repos is not worth ~50 lines.
+
+**Where it lives.** The file goes to S3 (and to `models/` here, gitignored), never to git. The
+backend's config pins `model_version` + sha256; that pin is what is versioned, and changing it is
+how a model is swapped. Downloading at image build (rollback = previous image) or at start-up
+(swap by config) both work.
+
+**Once live**, the "não classificado" pool is monitored on production data: dev leans on UK and
 Portuguese feeds, and subjects rare in dev can only show up there.
 
 ## Open decisions (for the team)
